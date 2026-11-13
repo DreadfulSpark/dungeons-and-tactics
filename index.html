@@ -42,7 +42,8 @@ html,body{margin:0;height:100%;background:#0c0910;color:var(--bone);font-family:
 #topright{display:flex;gap:6px;pointer-events:auto}
 #threatBtn{display:none}
 #hud.battle #threatBtn{display:block}
-#hint{position:fixed;top:44px;left:12px;font-size:9px;color:var(--bone);max-width:340px;line-height:1.8;text-shadow:2px 2px 0 #000}
+#hint{position:fixed;top:44px;left:12px;font-size:9px;color:#fff6e0;max-width:340px;line-height:1.8;text-shadow:2px 2px 0 #000;background:rgba(18,13,24,.78);border-left:3px solid var(--amber);padding:6px 9px}
+#hint:empty{display:none!important}
 #unitPanel{position:fixed;top:52px;right:12px;width:260px;max-height:calc(100% - 200px);overflow:auto;font-size:8px;line-height:1.8;transform:translateX(120%);transition:transform .2s ease-out}
 #unitPanel.show{transform:none}
 #unitPanel h3{margin:0;font-size:11px;font-weight:400;color:var(--teal2)} #unitPanel h3.enemy{color:var(--ember)}
@@ -207,10 +208,10 @@ html,body{margin:0;height:100%;background:#0c0910;color:var(--bone);font-family:
  <div id="top">
   <div id="turnLabel"></div>
   <div id="topright">
-   <button class="btn" id="rollBtn" aria-label="Toggle flick or auto dice rolling">Roll: Flick</button>
+   <button class="btn bonly" id="rollBtn" aria-label="Toggle flick or auto dice rolling">Roll: Flick</button>
    <button class="btn" id="threatBtn" aria-label="Show enemy threat range">Threat</button>
-   <button class="btn" id="rotL" aria-label="Rotate camera left">&#10226;</button>
-   <button class="btn" id="rotR" aria-label="Rotate camera right">&#10227;</button>
+   <button class="btn bonly" id="rotL" aria-label="Rotate camera left">&lt;</button>
+   <button class="btn bonly" id="rotR" aria-label="Rotate camera right">&gt;</button>
    <button class="btn" id="muteBtn" aria-label="Toggle sound">Snd</button>
   </div>
  </div>
