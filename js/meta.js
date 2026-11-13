@@ -11,7 +11,7 @@ let S = null;
 
 // ================= SAVE =================
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
-function load() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); return s && s.v === 2 ? s : null; } catch (e) { return null; } }
+function load() { try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (!s || s.v !== 2) return null; if (s.tokens == null) s.tokens = 1; if (s.run) { s.run.relics = s.run.relics || []; s.run.oath = s.run.oath || 'none'; } return s; } catch (e) { return null; } }
 
 // ================= HEROES =================
 function rollLevel(h) {
@@ -33,7 +33,7 @@ function randomLook(cls) {
 }
 function randomRecruit() {
   const cls = pick(Object.keys(D.CLASSES));
-  const lvl = 1 + Math.floor(S.bestDepth / 2) + (Math.random() < .3 ? 1 : 0);
+  const lvl = Math.min(D.MAX_LEVEL, 1 + Math.floor(S.bestDepth / 2) + (Math.random() < .3 ? 1 : 0));
   const used = new Set(S.roster.map(h => h.name));
   const name = pick(D.NAMES.filter(n => !used.has(n))) || pick(D.NAMES);
   const h = makeHero({ name, cls, look: randomLook(cls), level: lvl });
@@ -58,7 +58,7 @@ const partyHeroes = () => S.party.map(id => S.roster.find(h => h.id === id)).fil
 
 // ================= NEW GAME =================
 function newGame() {
-  S = { v: 2, gold: 120, roster: [], party: [], slots: 3, nextId: 1, bag: [{ ...D.DICE.d4 }, { ...D.DICE.d6 }, { ...D.DICE.d8 }], items: { potion: 2, firebomb: 1 }, armory: [], questsDone: [], bestDepth: 0, runs: 0, tavern: [], run: null };
+  S = { v: 2, gold: 120, tokens: 1, roster: [], party: [], slots: 3, nextId: 1, bag: ['d4', 'd6', 'd8'].map(k => ({ ...D.DICE[k], faces: [...D.DICE[k].faces] })), items: { potion: 2, firebomb: 1 }, armory: [], questsDone: [], bestDepth: 0, runs: 0, tavern: [], run: null };
   D.HEROES_START.forEach(o => { const h = makeHero(o); S.roster.push(h); S.party.push(h.id); });
   S.tavern = [randomRecruit(), randomRecruit(), randomRecruit()];
   save();
@@ -76,13 +76,17 @@ M.rollChestLoot = function (depth) {
   if (r < .85) { const k = pick(['lucky', 'd8', 'gilded', 'd6']); return { kind: 'die', die: k, label: D.DICE[k].name }; }
   const w = pick(weaponPool(depth)); return { kind: 'weapon', weapon: w, label: D.WEAPONS[w].name };
 };
-function rewardCards(depth, n = 3) {
+function relicPool(cursed) { const own = (S.run && S.run.relics) || []; return Object.keys(D.RELICS).filter(k => !own.includes(k) && !!D.RELICS[k].cursed === !!cursed); }
+function rewardCards(depth, n = 3, o = {}) {
   const kinds = ['weapon', 'weapon', 'die', 'item', 'gold', 'xp'];
   const out = []; const usedW = new Set();
+  const rr = Math.random();
+  if (o.relic || rr < .18) { const k = pick(relicPool(false)); if (k) out.push({ kind: 'relic', relic: k }); }
+  else if (rr < .36) { const k = pick(relicPool(true)); if (k) out.push({ kind: 'relic', relic: k }); }
   while (out.length < n) {
     const k = pick(kinds);
     if (k === 'weapon') { const w = pick(weaponPool(depth).filter(x => !usedW.has(x))); if (!w) continue; usedW.add(w); out.push({ kind: 'weapon', weapon: w }); }
-    else if (k === 'die') { if (out.some(c => c.kind === 'die')) continue; out.push({ kind: 'die', die: pick(['d6', 'd8', 'lucky', 'gilded', 'wild']) }); }
+    else if (k === 'die') { if (out.some(c => c.kind === 'die')) continue; out.push({ kind: 'die', die: pick(['d6', 'd8', 'lucky', 'gilded', 'wild', 'blast', 'glass']) }); }
     else if (k === 'item') { if (out.some(c => c.kind === 'item')) continue; const item = pick(['potion', 'firebomb']); out.push({ kind: 'item', item, n: item === 'potion' ? 2 : 1 }); }
     else if (k === 'gold') { if (out.some(c => c.kind === 'gold')) continue; out.push({ kind: 'gold', amount: Math.round(35 * (1 + .3 * (depth - 1))) }); }
     else { if (out.some(c => c.kind === 'xp')) continue; out.push({ kind: 'xp', amount: 40 }); }
@@ -91,8 +95,9 @@ function rewardCards(depth, n = 3) {
 }
 function cardHTML(c) {
   if (c.kind === 'weapon') { const w = D.WEAPONS[c.weapon]; const sc = Object.entries(w.scale).map(([s, g]) => D.STATNAME[s] + ' ' + g).join(', ');
-    return `<div class="card-t">${esc(w.name)}</div><div class="mute">${D.TYPE_LABEL[w.type]} · Tier ${w.tier}</div><div>Might ${w.might} · Hit ${w.hit}<br>Range ${w.range[0]}-${w.range[1]}${w.keen ? ' · Keen' : ''}</div><div class="mute">${sc}</div>`; }
-  if (c.kind === 'die') { const d = D.DICE[c.die]; return `<div class="card-t">${d.name}</div><div class="mute">New die for your bag</div><div class="faces">${d.faces.map(f => `<i>${f}</i>`).join('')}</div>`; }
+    return `<div class="card-t">${esc(w.name)}</div><div class="mute">${D.TYPE_LABEL[w.type]} · Tier ${w.tier}</div><div>Might ${w.might} · Hit ${w.hit}<br>Range ${w.range[0]}-${w.range[1]}${w.keen ? ' · Keen' : ''}</div><div class="mute">${sc}</div>${w.fx ? `<div class="teal">${D.WFX[w.fx]}</div>` : ''}`; }
+  if (c.kind === 'relic') { const rl = D.RELICS[c.relic]; return `<div class="card-t">${esc(rl.name)}</div><div class="mute">${rl.cursed ? 'Cursed relic' : 'Relic'} · lasts this run</div><div>${esc(rl.desc)}</div>`; }
+  if (c.kind === 'die') { const d = D.DICE[c.die]; return `<div class="card-t">${d.name}</div><div class="mute">New die for your bag</div><div class="faces">${d.faces.map(f => `<i>${f}</i>`).join('')}</div>${d.desc ? `<div class="teal">${d.desc}</div>` : ''}`; }
   if (c.kind === 'item') { const it = D.ITEMS[c.item]; return `<div class="card-t">${it.name} x${c.n}</div><div class="mute">${it.desc}</div>`; }
   if (c.kind === 'gold') return `<div class="card-t">${c.amount} gold</div><div class="mute">Banked when you return to camp</div>`;
   if (c.kind === 'xp') return `<div class="card-t">Training manual</div><div class="mute">+${c.amount} XP to every hero in the party</div>`;
@@ -116,6 +121,7 @@ function modal(html, buttons) {
   m.classList.add('show');
 }
 const closeModal = () => $('modal').classList.remove('show');
+M.modal = modal;
 function bindClicks(root) { root.querySelectorAll('[data-act]').forEach(el => el.addEventListener('click', e => { e.stopPropagation(); DT.audio.init(); const [a, ...args] = el.dataset.act.split(':'); if (ACT[a]) { SFX('click'); ACT[a](...args); } })); }
 function statGrid(h) { return `<div class="sgrid">${D.STATS.map(([k, n]) => `<span>${n}</span><b>${k === 'hp' ? h.hp + '/' + h.stats.hp : h.stats[k]}</b>`).join('')}</div>`; }
 
@@ -183,11 +189,11 @@ function campTavern() {
 function campForge() {
   const shopW = weaponPool(Math.max(1, S.bestDepth + 1)).concat(['ironsword', 'shortbow', 'embertome', 'mace', 'dagger', 'handaxe', 'mendstaff']).filter((v, i, a) => a.indexOf(v) === i);
   return `<div class="sec-t">Dice <span class="mute">bag holds 6. Every die rolls each turn; you choose who gets which.</span></div>
-    <div class="shop">${Object.entries(D.DICE).map(([k, d]) => `<div class="sitem"><b>${d.name}</b><div class="faces">${d.faces.map(f => `<i>${f}</i>`).join('')}</div><button class="btn" data-act="buydie:${k}" ${S.gold < d.price || S.bag.length >= 6 ? 'disabled' : ''}>${d.price}g</button></div>`).join('')}</div>
+    <div class="shop">${Object.entries(D.DICE).map(([k, d]) => `<div class="sitem"><b>${d.name}</b><div class="faces">${d.faces.map(f => `<i>${f}</i>`).join('')}</div>${d.desc ? `<div class="mute small">${d.desc}</div>` : ''}<button class="btn" data-act="buydie:${k}" ${S.gold < d.price || S.bag.length >= 6 ? 'disabled' : ''}>${d.price}g</button></div>`).join('')}</div>
     <div class="sec-t">Carve a die <span class="mute">raise its lowest face by 1</span></div>
     <div class="shop">${S.bag.map((d, i) => { const cost = 40 + 20 * (d.carved || 0); return `<div class="sitem"><b>${d.name}${d.carved ? ' +' + d.carved : ''}</b><div class="faces">${d.faces.map(f => `<i>${f}</i>`).join('')}</div><button class="btn" data-act="carve:${i}" ${S.gold < cost ? 'disabled' : ''}>Carve ${cost}g</button></div>`; }).join('')}</div>
     <div class="sec-t">Weapons <span class="mute">go to the armory; equip them from the Party tab</span></div>
-    <div class="shop">${shopW.map(k => { const w = D.WEAPONS[k]; return `<div class="sitem"><b>${w.name}</b><div class="mute">${D.TYPE_LABEL[w.type]} · Mt ${w.might} · R ${w.range[0]}-${w.range[1]}</div><button class="btn" data-act="buyw:${k}" ${S.gold < w.price ? 'disabled' : ''}>${w.price}g</button></div>`; }).join('')}</div>
+    <div class="shop">${shopW.map(k => { const w = D.WEAPONS[k]; return `<div class="sitem"><b>${w.name}</b><div class="mute">${D.TYPE_LABEL[w.type]} · Mt ${w.might} · R ${w.range[0]}-${w.range[1]}${w.keen ? ' · Keen' : ''}</div>${w.fx ? `<div class="teal small">${D.WFX[w.fx].split(':')[0]}</div>` : ''}<button class="btn" data-act="buyw:${k}" ${S.gold < w.price ? 'disabled' : ''}>${w.price}g</button></div>`; }).join('')}</div>
     <div class="sec-t">Supplies</div>
     <div class="shop">${Object.entries(D.ITEMS).map(([k, it]) => `<div class="sitem"><b>${it.name}</b> <span class="mute">(have ${S.items[k] || 0})</span><div class="mute">${it.desc}</div><button class="btn" data-act="buyi:${k}" ${S.gold < it.price ? 'disabled' : ''}>${it.price}g</button></div>`).join('')}</div>`;
 }
@@ -233,6 +239,8 @@ const ACT = {
   give(i, id) { giveWeapon(+i, id); },
   ev(i) { resolveEvent(+i); },
   rest() { campfire('rest'); },
+  riftfeed(i) { const r = S.run; const d = S.bag[+i]; if (!d || S.bag.length <= 1) return; S.bag.splice(+i, 1); SFX('blink'); save(); rewards({ title: 'The rift answers', text: `${d.name} vanishes into the dark.`, cards: rewardCards(r.depth + 2, 3, { relic: Math.random() < .5 }), picks: 1 }); },
+  riftleave() { SFX('click'); runMap(); },
   train() { campfire('train'); },
   home() { endRun(true); },
   deeper() { nextFloor(); },
@@ -258,7 +266,7 @@ function genFloor(depth, quest) {
     if (i === L - 1) { layers.push([{ type: quest ? 'rescue' : 'boss' }]); continue; }
     const n = 2 + (Math.random() < .5 ? 1 : 0);
     const row = [];
-    for (let j = 0; j < n; j++) { const r = Math.random(); row.push({ type: i === L - 2 && j === 0 ? 'campfire' : r < .45 ? 'battle' : r < .6 ? 'elite' : r < .72 ? 'treasure' : r < .86 ? 'event' : 'campfire' }); }
+    for (let j = 0; j < n; j++) { const r = Math.random(); row.push({ type: i === L - 2 && j === 0 ? 'campfire' : r < .43 ? 'battle' : r < .58 ? 'elite' : r < .69 ? 'treasure' : r < .82 ? 'event' : r < .9 ? 'rift' : 'campfire' }); }
     layers.push(row);
   }
   for (let i = 0; i < L - 1; i++) {
@@ -270,14 +278,20 @@ function genFloor(depth, quest) {
   layers[L - 1][0].next = [];
   return layers;
 }
-function startRun(questId) {
+function startRun(questId, oathKey) {
   const party = partyHeroes();
   if (!party.length) { SFX('error'); toast('Add at least one hero to your party first.'); return; }
+  if (!questId && oathKey == null) {
+    modal(`<h2>Swear an oath?</h2><div class="mute">Oaths make a run harder in exchange for a reward.</div><div class="oaths">${Object.entries(D.OATHS).map(([k, o]) => `<button class="btn ${k === 'none' ? 'primary' : ''}" data-oath="${k}"><b>${o.name}</b><br><span class="mute">${o.desc}</span></button>`).join('')}</div>`, [{ label: 'Cancel' }]);
+    $('modalBody').querySelectorAll('[data-oath]').forEach(b => b.onclick = () => { SFX('click'); closeModal(); startRun(null, b.dataset.oath); });
+    return;
+  }
   S.roster.forEach(h => { h.hp = h.stats.hp; h.ko = false; });
-  S.run = { depth: 1, quest: questId, layers: genFloor(1, questId), layer: -1, at: null, gold: 0, log: [] };
+  S.run = { depth: 1, quest: questId, layers: genFloor(1, questId), layer: -1, at: null, gold: 0, log: [], oath: oathKey || 'none', relics: [], mullDepth: 0 };
+  if (oathKey === 'peril') { const k = pick(relicPool(false)); S.run.relics.push(k); toast(`Oath of peril: you start with ${D.RELICS[k].name}.`); }
   save(); runMap();
 }
-const NODE_LABEL = { battle: 'Fight', elite: 'Elite', treasure: 'Treasure', event: '???', campfire: 'Campfire', boss: 'Boss', rescue: 'Rescue' };
+const NODE_LABEL = { battle: 'Fight', elite: 'Elite', treasure: 'Treasure', event: '???', campfire: 'Campfire', boss: 'Boss', rescue: 'Rescue', rift: 'Rift' };
 function runMap() {
   const r = S.run; const q = r.quest && D.QUESTS.find(x => x.id === r.quest);
   DT.battle.showcase(DT.rooms.build('battle', r.depth));
@@ -285,6 +299,7 @@ function runMap() {
   const avail = r.layer < 0 ? [0] : (r.layers[r.layer][r.at].next || []);
   const cur = r.layer >= 0 ? r.layers[r.layer][r.at] : null;
   const pending = cur && !cur.done && ['battle', 'elite', 'boss', 'rescue'].includes(cur.type);
+  const finished = cur && cur.done && r.layer === L - 1;
   let nodes = '', lines = '';
   const pos = (i, j) => [6 + i * (88 / (L - 1)), (j + 1) / (r.layers[i].length + 1) * 100];
   r.layers.forEach((row, i) => row.forEach((n, j) => {
@@ -297,8 +312,10 @@ function runMap() {
   const party = partyHeroes();
   show(`<div class="runmap"><div class="camp-top"><div><h2>${q ? esc(q.title) : 'The Crypt'} · Floor ${r.depth}</h2><div class="mute">Choose your path. Run gold: ${r.gold}g (banked at camp)</div></div><div class="gold">${S.gold}g</div></div>
     <div class="map"><svg viewBox="0 0 100 100" preserveAspectRatio="none">${lines}</svg>${nodes}</div>
+    ${finished ? `<div class="col"><button class="btn primary big" data-act="home">Return to camp (bank ${r.gold}g)</button>${cur.type === 'boss' ? '<button class="btn big" data-act="deeper">Descend deeper</button>' : ''}</div>` : ''}
     <div class="partyline">${party.map(h => `<div class="pmini ${h.ko ? 'ko' : ''}" data-portrait="${h.id}"><div>${esc(h.name)}<div class="hpline"><i style="width:${100 * h.hp / h.stats.hp}%"></i></div><span class="mute small">${h.ko ? 'Knocked out' : h.hp + '/' + h.stats.hp}</span></div></div>`).join('')}
-    <div class="mute small">Potions ${S.items.potion || 0} · Firebombs ${S.items.firebomb || 0} · Dice ${S.bag.length}</div></div></div>`, 'runscr');
+    <div class="mute small">Potions ${S.items.potion || 0} · Firebombs ${S.items.firebomb || 0} · Dice ${S.bag.length} · Reroll tokens ${S.tokens || 0}${r.oath && r.oath !== 'none' ? ' · ' + D.OATHS[r.oath].name : ''}</div></div>
+    ${(r.relics || []).length ? `<div class="relics">${r.relics.map(k => `<span class="${D.RELICS[k].cursed ? 'cursed' : ''}" title="${esc(D.RELICS[k].desc)}">${esc(D.RELICS[k].name)}</span>`).join('')}</div>` : ''}</div>`, 'runscr');
   scr().querySelectorAll('[data-portrait]').forEach(el => { const h = S.roster.find(x => x.id === el.dataset.portrait); if (h) el.prepend(portrait(h, 1)); });
   bindClicks(scr());
 }
@@ -307,9 +324,17 @@ function enterNode(j) {
   r.layer++; r.at = j;
   if (['battle', 'elite', 'boss', 'rescue'].includes(n.type)) { save(); return battle(n); }
   n.done = true; save();
-  if (n.type === 'treasure') { r.gold += 20; return rewards({ title: 'Treasure', text: 'A forgotten cache. +20 gold.', cards: rewardCards(r.depth, 3), picks: 1 }); }
+  if (n.type === 'treasure') { r.gold += 20; return rewards({ title: 'Treasure', text: 'A forgotten cache. +20 gold.', cards: rewardCards(r.depth, 3, { relic: true }), picks: 1 }); }
+  if (n.type === 'rift') return rift();
   if (n.type === 'campfire') return show(`<div class="center-panel"><h2>Campfire</h2><div class="mute">The fire crackles. Take a breath.</div><div class="col"><button class="btn primary big" data-act="rest">Rest: heal 40%</button><button class="btn big" data-act="train">Train: +40 XP each</button></div></div>`, 'runscr'), bindClicks(scr());
   if (n.type === 'event') return event();
+}
+function rift() {
+  const can = S.bag.length > 1;
+  show(`<div class="center-panel"><h2>A rift</h2><div class="mute">A tear in the dark hums at your dice. Feed it one and it gives back something from much deeper.</div>
+    <div class="sec-t">${can ? 'Feed it a die (gone for good)' : 'You only have one die left. The rift ignores you.'}</div>
+    <div class="col">${can ? S.bag.map((d, i) => `<button class="btn big" data-act="riftfeed:${i}">${esc(d.name)}${d.carved ? ' +' + d.carved : ''} <span class="mute">[${d.faces.join(' ')}]</span></button>`).join('') : ''}<button class="btn big" data-act="riftleave">Walk away</button></div></div>`, 'runscr');
+  bindClicks(scr());
 }
 function battle(n) {
   const r = S.run;
@@ -321,13 +346,15 @@ function battle(n) {
   let prisoner = null;
   if (kind === 'rescue' && q) { const sp = D.SPECIALS.find(s => s.id === q.special); prisoner = { cls: sp.cls, look: sp.look, weapons: [sp.weapon], special: sp.id, name: sp.name }; }
   hideScreen();
-  DT.battle.start({ room, party: fighters, bag: S.bag, items: S.items, prisoner, title: (kind === 'boss' ? 'Boss' : kind === 'elite' ? 'Elite' : kind === 'rescue' ? 'Rescue' : 'Floor ' + r.depth), onEnd: res => afterBattle(n, res) });
+  DT.battle.start({ room, party: fighters, bag: S.bag, items: S.items, prisoner, relics: r.relics || [], oath: r.oath || 'none', tokens: S.tokens || 0, mulligan: r.mullDepth !== r.depth, title: (kind === 'boss' ? 'Boss' : kind === 'elite' ? 'Elite' : kind === 'rescue' ? 'Rescue' : 'Floor ' + r.depth), onEnd: res => afterBattle(n, res) });
 }
 function afterBattle(n, res) {
   const r = S.run; const lines = [];
   // apply hp / ko / xp
   const ups = [];
   res.heroes.forEach(o => { const h = S.roster.find(x => x.id === o.id); if (!h) return; h.hp = o.hp; h.ko = o.ko; if (o.xp) ups.push(...giveXP(h, o.xp)); });
+  S.tokens = Math.min(5, (res.tokens || 0) + ups.length); if (ups.length) lines.push(`+${ups.length} reroll token${ups.length > 1 ? 's' : ''} from level-ups.`);
+  if (res.mulliganUsed) r.mullDepth = r.depth;
   res.loot.forEach(l => { if (l.kind === 'die') addDie(l.die); if (l.kind === 'weapon') S.armory.push(l.weapon); });
   if (res.loot.length) lines.push('Chest loot: ' + res.loot.map(l => l.label).join(', '));
   r.gold += res.gold;
@@ -335,7 +362,7 @@ function afterBattle(n, res) {
   if (!res.win) { S.gold += 0; return endRun(false, ups); }
   if (n.type === 'rescue') return finishQuest(ups, res);
   if (n.type === 'boss') { r.gold += 40 + 20 * r.depth; S.bestDepth = Math.max(S.bestDepth, r.depth); }
-  rewards({ title: n.type === 'boss' ? 'Boss defeated!' : 'Victory', text: `+${res.gold}g run gold${n.type === 'boss' ? ' and a boss bounty' : ''}. ${lines.join(' ')}`, ups, cards: rewardCards(r.depth + (n.type === 'elite' || n.type === 'boss' ? 1 : 0), 3), picks: n.type === 'elite' ? 2 : 1, boss: n.type === 'boss' });
+  rewards({ title: n.type === 'boss' ? 'Boss defeated!' : 'Victory', text: `+${res.gold}g run gold${n.type === 'boss' ? ' and a boss bounty' : ''}. ${lines.join(' ')}`, ups, cards: rewardCards(r.depth + (n.type === 'elite' || n.type === 'boss' ? 1 : 0), 3, { relic: n.type === 'boss' }), picks: n.type === 'elite' ? 2 : 1, boss: n.type === 'boss' });
 }
 let RW = null;
 function upsHTML(ups) { return (ups || []).map(u => `<div class="lvup"><b>${esc(u.h.name)}</b> reached <b>Lv ${u.level}</b>: ${Object.entries(u.gains).map(([k, v]) => `${D.STATNAME[k]} +${v}`).join(', ') || 'no gains'}${u.perk ? `<br><span class="teal">New perk: ${D.PERKS[u.perk].name}</span>` : ''}</div>`).join(''); }
@@ -345,7 +372,7 @@ function rewards(o) {
   const left = o.picks - RW.taken.length;
   show(`<div class="center-panel wide"><h2>${esc(o.title)}</h2><div class="mute">${o.text || ''}</div>${upsHTML(o.ups)}
     <div class="sec-t">${left > 0 ? `Choose ${left} reward${left > 1 ? 's' : ''}` : 'Rewards taken'}</div>
-    <div class="cards">${o.cards.map((c, i) => `<button class="card ${RW.taken.includes(i) ? 'taken' : ''}" ${left > 0 && !RW.taken.includes(i) ? `data-act="card:${i}"` : 'disabled'}>${cardHTML(c)}</button>`).join('')}</div>
+    <div class="cards">${o.cards.map((c, i) => `<button class="card ${c.kind === 'relic' ? (D.RELICS[c.relic].cursed ? 'cursed' : 'relic') : ''} ${RW.taken.includes(i) ? 'taken' : ''}" ${left > 0 && !RW.taken.includes(i) ? `data-act="card:${i}"` : 'disabled'}>${cardHTML(c)}</button>`).join('')}</div>
     <div class="col">${left > 0 ? '<button class="btn" data-act="card:-1">Skip</button>' : ''}${left <= 0 ? (o.boss ? '<button class="btn primary big" data-act="home">Return to camp (bank gold)</button><button class="btn big" data-act="deeper">Descend deeper</button>' : o.quest ? '<button class="btn primary big" data-act="home">Return to camp</button>' : '<button class="btn primary big" data-act="node_back">Continue</button>') : ''}</div></div>`, 'runscr');
   bindClicks(scr());
   const nb = scr().querySelector('[data-act="node_back"]'); if (nb) nb.onclick = () => { SFX('click'); runMap(); };
@@ -360,6 +387,7 @@ function takeCard(i) {
     return;
   }
   if (c.kind === 'die') addDie(c.die);
+  if (c.kind === 'relic') { r.relics = r.relics || []; r.relics.push(c.relic); toast(`${D.RELICS[c.relic].name}: ${D.RELICS[c.relic].desc}`); }
   if (c.kind === 'item') S.items[c.item] = (S.items[c.item] || 0) + c.n;
   if (c.kind === 'gold') r.gold += c.amount;
   let ups = [];
@@ -400,7 +428,7 @@ function resolveEvent(i) {
       if (safe || Math.random() < .4) { const l = M.rollChestLoot(S.run.depth + 1); if (l.kind === 'gold') S.run.gold += l.amount; if (l.kind === 'item') S.items[l.item] = (S.items[l.item] || 0) + 1; if (l.kind === 'die') addDie(l.die); if (l.kind === 'weapon') S.armory.push(l.weapon); msg = `${safe ? 'Your scout disarms the needle trap. ' : 'Lucky. '}Inside: ${l.label}.`; }
       else { party.forEach(h => { if (!h.ko) h.hp = Math.max(1, h.hp - 5); }); msg = 'Poison needles! Everyone loses 5 HP.'; }
       break; }
-    case 'buylucky': addDie('lucky'); msg = 'He hands you a sticky Lucky d6.'; break;
+    case 'buylucky': msg = S.bag.length >= 6 ? 'Your dice bag is full, so you sell the sticky Lucky d6 back on the spot.' : 'He hands you a sticky Lucky d6.'; addDie('lucky'); break;
     case 'buypotions': S.items.potion = (S.items.potion || 0) + 2; msg = '+2 potions. Probably safe.'; break;
     case 'spiritxp': party.forEach(h => { if (!h.ko) { h.hp = Math.max(1, h.hp - 4); ups.push(...giveXP(h, 60)); } }); msg = 'Voices teach you old tricks.'; break;
   }
@@ -415,15 +443,17 @@ function nextFloor() {
 }
 function finishQuest(ups, res) {
   const r = S.run; const q = D.QUESTS.find(x => x.id === r.quest); const sp = D.SPECIALS.find(s => s.id === q.special);
-  S.questsDone.push(q.id);
   let joined = '';
-  if (S.roster.length < D.ROSTER_CAP && !S.roster.some(h => h.special === sp.id)) {
-    const h = makeHero({ name: sp.name, cls: sp.cls, look: sp.look, level: Math.max(3, 1 + S.bestDepth), bonus: sp.bonus, special: sp.id, weapons: [sp.weapon, ...D.CLASSES[sp.cls].start.filter(w => D.WEAPONS[w].type === 'heal')] });
+  const full = S.roster.length >= D.ROSTER_CAP && !S.roster.some(h => h.special === sp.id);
+  if (full) joined = `Your roster is full (${D.ROSTER_CAP}). Retire room for ${sp.name} and run this quest again.`;
+  else S.questsDone.push(q.id);
+  if (!full && !S.roster.some(h => h.special === sp.id)) {
+    const h = makeHero({ name: sp.name, cls: sp.cls, look: sp.look, level: Math.min(D.MAX_LEVEL, Math.max(3, 1 + S.bestDepth)), bonus: sp.bonus, special: sp.id, weapons: [sp.weapon, ...D.CLASSES[sp.cls].start.filter(w => D.WEAPONS[w].type === 'heal')] });
     S.roster.push(h); if (S.party.length < S.slots) S.party.push(h.id); joined = `${sp.name} joins your roster!`;
   }
-  if (q.slot && S.slots < 5) { S.slots++; joined += ` Party slot ${S.slots} unlocked!`; }
+  if (!full && q.slot && S.slots < 5) { S.slots++; joined += ` Party slot ${S.slots} unlocked!`; }
   r.gold += q.gold; S.bestDepth = Math.max(S.bestDepth, 1);
-  SFX('levelup');
+  SFX('levelup'); save();
   RW = null;
   rewards({ title: 'Quest complete: ' + q.title, text: joined, ups, cards: rewardCards(2, 3), picks: 1, boss: false, quest: true });
 }

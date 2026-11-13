@@ -1,4 +1,4 @@
-# Dungeons & Tactics — design doc (v2)
+# Dungeons & Tactics — design doc (v4)
 
 **One sentence:** a roguelite tactics game in a torchlit 3D pixel crypt with HD-2D sprite heroes, where your party's movement comes from a pool of dice you roll and hand out every turn.
 
@@ -55,6 +55,42 @@ HP, Defense, Physical, Ranged, Arcane, Ward, Faith, Speed, Stealth (unchanged). 
 | Warlock | 3 | Hex (+1d4 per hit, bonus) | Siphon (heal 30% of damage) | Dark pact (crit 17+ vs hexed) |
 | Monk | 5 | Flurry (1d6 + half Phys, bonus) | Deflect (-3 from range) | Step of the wind (+2 move, free climbing) |
 | Alchemist | 3 | Brew (d6: potion/firebomb, bonus) | Volatile mix (3d6 bombs) | Mutagen (d4 dmg, +2 move) |
+
+## v4: maps, weapons and 20 features
+**Maps:** 38 layouts (6 original + 32 new). Every layout has structure slots (`O`), and each map picks exactly **2 structure kinds** from 12 to fill them:
+| Kind | Role |
+|---|---|
+| Brazier pillar, Statue, Bookshelf, Sarcophagus | Block movement (pillar lights the area) |
+| Obelisk | Blocks; Arcane attacks from next to it +10% |
+| Crystal | Blocks; Shatter it (Action, 2d6 to adjacent enemies, half to allies) |
+| Watchtower | Tower: bows +1 range, +10 hit |
+| Scaffold | High ground |
+| Barrels, Tombstones, Crates, Glowcaps | Cover (-20 hit, +1 move cost) |
+Dev URL: `?layout=moat&structs=crystal,barrels` forces a layout and pair.
+
+**30 new weapons** (tiers 1-3) with effects: Chill (-2 move; next hit Shatters x1.5), Drain (heal 25%), Pierce (ignore 3 Def/Ward), Knockback (push 1).
+
+**Features (top 20 of 100 brainstormed, ranked by 3 critics):**
+1. Reroll tokens: earned from chests and level-ups (max 5); re-throw one die.
+2. Blast d6: a 6 explodes and adds another roll.
+3. Telegraphed attacks: every enemy shows its target; **Interrupt** (bonus, d20 + Speed) staggers an adjacent attacker. Read intent now also shows damage.
+4. Shove: any hero can push an adjacent enemy 1 tile (bonus). Knights' Shield bash hits harder.
+5. Blood offering: on an altar, pay 3 HP for an extra d6 in the tray.
+6. Run relics (12), found in treasure rooms, rifts, bosses and reward cards.
+7. Cursed relics (4): strong with a drawback, red reward cards.
+8. Glass d8: an 8 becomes 16, then the die shatters.
+9. Combo: each extra hero attack on the same enemy this turn +10 hit (max +20).
+10. Last stand: the first KO each battle leaves a hero at 1 HP.
+11. Bloater: volatile enemy that bursts for 1d6+3 on death (chains).
+12. Crystal structures you can shatter.
+13. Rift node: feed it a die for a reward from 2 floors deeper.
+14. Oaths before a run: Greed, Peril, Ascetic.
+15. Mulligan: once per floor, re-throw every unlocked die.
+16. Chill weapons.
+17. Pairs: two dice with the same face; the hero holding one gets an extra bonus action.
+18. Die sacrifice: block an incoming riposte by burning an unused die.
+19. Flank: an ally directly opposite the target adds +1d4.
+20. Crumbling floor: some elite/deep rooms lose their outer ring on turn 3 and the next ring on turn 5 (warned a turn ahead).
 
 ## Roguelite loop
 - **Camp:** Party (roster up to 40, party 3→5 slots), Tavern (hire basic heroes), Forge (dice, weapons, potions, carve dice), Quest board, Shrine (buy party slots).

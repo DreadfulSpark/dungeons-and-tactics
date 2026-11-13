@@ -198,7 +198,7 @@ DI.roll = function (specs, opts = {}) {
       d.bounces = 0; d.speed = opts.fast ? .62 : 1;
       return d;
     });
-    layer.classList.add('show'); running = true; requestAnimationFrame(() => loop(performance.now()));
+    layer.classList.add('show'); if (!running) { running = true; requestAnimationFrame(() => loop(performance.now())); }
     const interactive = opts.interactive && !auto;
     let dir = null;
     if (interactive) {

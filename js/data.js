@@ -8,7 +8,8 @@ D.STATS = [['hp','HP'],['def','Defense'],['phys','Physical'],['rng','Ranged'],['
 D.STATNAME = Object.fromEntries(D.STATS);
 D.TRI = { blade: 'bow', bow: 'arcane', arcane: 'blade' };
 D.TYPE_LABEL = { blade: 'Blade', bow: 'Ranged', arcane: 'Arcane', faith: 'Faith', heal: 'Healing' };
-D.RIPOSTE_MAX = 5; // attacker rolls of 1..5 let the defender strike back
+D.RIPOSTE_MAX = 5;
+D.WFX = { chill:'Chill: -2 move. The next hit on a chilled target Shatters for x1.5.', drain:'Drain: heal 25% of damage dealt.', pierce:'Pierce: ignores 3 Defense or Ward.', knock:'Knockback: pushes the target 1 tile.' }; // attacker rolls of 1..5 let the defender strike back
 
 // art: sword dagger axe bow tome staff mace claw
 D.WEAPONS = {
@@ -35,6 +36,37 @@ D.WEAPONS = {
   tigerclaws: { name:'Tiger claws',    type:'blade',  art:'fist',   might:6,  hit:95, keen:2, range:[1,1], scale:{phys:'A', spd:'B'}, price:210, tier:2 },
   flasks:     { name:'Acid flasks',    type:'bow',    art:'flask',  might:4,  hit:85, range:[2,3], scale:{rng:'A', arc:'C'}, price:60, tier:1 },
   volatileflasks:{ name:'Volatile flasks', type:'bow', art:'flask', might:7,  hit:82, range:[2,3], scale:{rng:'A', arc:'B'}, price:200, tier:2 },
+  // ---- v4 weapons. fx: chill (-2 move; next hit on a chilled target Shatters x1.5) · drain (heal 25% of damage) · pierce (ignore 3 Def/Ward) · knock (push 1 tile)
+  hookblade:  { name:'Hookblade',      type:'blade',  art:'sword',  might:5,  hit:88, range:[1,1], scale:{phys:'A'}, fx:'knock', price:90, tier:1 },
+  frostbrand: { name:'Frostbrand',     type:'blade',  art:'sword',  might:6,  hit:88, range:[1,1], scale:{phys:'A'}, fx:'chill', price:170, tier:2 },
+  bastard:    { name:'Bastard sword',  type:'blade',  art:'sword',  might:9,  hit:80, range:[1,1], scale:{phys:'A'}, price:180, tier:2 },
+  sunsteel:   { name:'Sunsteel',       type:'blade',  art:'sword',  might:10, hit:86, keen:1, range:[1,1], scale:{phys:'A', faith:'C'}, price:320, tier:3 },
+  stiletto:   { name:'Stiletto',       type:'blade',  art:'dagger', might:2,  hit:100, keen:3, range:[1,1], scale:{phys:'C', stl:'B'}, fx:'pierce', price:70, tier:1 },
+  kris:       { name:'Kris',           type:'blade',  art:'dagger', might:4,  hit:95, keen:2, range:[1,1], scale:{phys:'C', stl:'A'}, price:150, tier:2 },
+  vampfang:   { name:'Vampire fang',   type:'blade',  art:'dagger', might:5,  hit:92, keen:1, range:[1,1], scale:{phys:'B', stl:'A'}, fx:'drain', price:280, tier:3 },
+  battleaxe:  { name:'Battleaxe',      type:'blade',  art:'axe',    might:9,  hit:78, range:[1,1], scale:{phys:'A'}, price:170, tier:2 },
+  rimeaxe:    { name:'Rime axe',       type:'blade',  art:'axe',    might:10, hit:75, range:[1,1], scale:{phys:'A'}, fx:'chill', price:300, tier:3 },
+  headsman:   { name:'Headsman',       type:'blade',  art:'axe',    might:13, hit:68, keen:1, range:[1,1], scale:{phys:'S'}, price:310, tier:3 },
+  cestus:     { name:'Cestus',         type:'blade',  art:'fist',   might:5,  hit:95, range:[1,1], scale:{phys:'A', spd:'C'}, fx:'knock', price:80, tier:1 },
+  dragonfist: { name:'Dragon fists',   type:'blade',  art:'fist',   might:8,  hit:95, keen:2, range:[1,1], scale:{phys:'A', spd:'A'}, price:300, tier:3 },
+  recurve:    { name:'Recurve bow',    type:'bow',    art:'bow',    might:5,  hit:90, range:[2,3], scale:{rng:'A'}, price:80, tier:1 },
+  frostbow:   { name:'Frost bow',      type:'bow',    art:'bow',    might:6,  hit:85, range:[2,3], scale:{rng:'A'}, fx:'chill', price:190, tier:2 },
+  crossbow:   { name:'Crossbow',       type:'bow',    art:'bow',    might:9,  hit:85, range:[2,3], scale:{rng:'B'}, fx:'pierce', price:200, tier:2 },
+  greatbow:   { name:'Greatbow',       type:'bow',    art:'bow',    might:9,  hit:75, range:[3,5], scale:{rng:'S'}, price:300, tier:3 },
+  heartseeker:{ name:'Heartseeker',    type:'bow',    art:'bow',    might:7,  hit:95, keen:2, range:[2,4], scale:{rng:'A'}, price:330, tier:3 },
+  frostflasks:{ name:'Frost flasks',   type:'bow',    art:'flask',  might:6,  hit:85, range:[2,3], scale:{rng:'A', arc:'C'}, fx:'chill', price:190, tier:2 },
+  frosttome:  { name:'Frost tome',     type:'arcane', art:'tome',   might:5,  hit:85, range:[1,2], scale:{arc:'A'}, fx:'chill', price:90, tier:1 },
+  bloodtome:  { name:'Blood tome',     type:'arcane', art:'tome',   might:6,  hit:85, range:[1,2], scale:{arc:'A'}, fx:'drain', price:200, tier:2 },
+  thundertome:{ name:'Thunder tome',   type:'arcane', art:'tome',   might:9,  hit:78, range:[1,2], scale:{arc:'A'}, fx:'knock', price:300, tier:3 },
+  starcodex:  { name:'Star codex',     type:'arcane', art:'tome',   might:7,  hit:90, keen:1, range:[1,4], scale:{arc:'S'}, price:340, tier:3 },
+  wailinglute:{ name:'Wailing lute',   type:'arcane', art:'lute',   might:5,  hit:88, range:[1,2], scale:{arc:'A', faith:'C'}, fx:'knock', price:180, tier:2 },
+  oathtome:   { name:'Oathbound tome', type:'arcane', art:'tome',   might:8,  hit:85, range:[1,3], scale:{arc:'A'}, fx:'drain', price:320, tier:3 },
+  shadowrod:  { name:'Shadow rod',     type:'arcane', art:'staff',  might:6,  hit:85, range:[2,3], scale:{arc:'A', stl:'C'}, fx:'pierce', price:190, tier:2 },
+  censer:     { name:'Censer',         type:'faith',  art:'staff',  might:5,  hit:90, range:[1,2], scale:{faith:'A'}, price:80, tier:1 },
+  flail:      { name:'Flail',          type:'faith',  art:'mace',   might:6,  hit:85, range:[1,1], scale:{faith:'A', phys:'C'}, fx:'knock', price:170, tier:2 },
+  warhammer:  { name:'Warhammer',      type:'faith',  art:'mace',   might:9,  hit:80, range:[1,1], scale:{faith:'A', phys:'B'}, fx:'pierce', price:300, tier:3 },
+  saplingstaff:{name:'Sapling staff',  type:'heal',   art:'staff',  might:7,  hit:100, range:[1,3], scale:{faith:'B'}, price:170, tier:2 },
+  bloomstaff: { name:'Bloom staff',    type:'heal',   art:'staff',  might:12, hit:100, range:[1,2], scale:{faith:'A'}, price:300, tier:3 },
   pacttome:   { name:'Pact tome',      type:'arcane', art:'tome',   might:5,  hit:82, range:[1,3], scale:{arc:'A'}, price:70, tier:1 },
   // enemy-only
   rustyblade: { name:'Rusty blade',    type:'blade',  art:'sword',  might:3,  hit:85, range:[1,1], scale:{phys:'A'} },
@@ -44,6 +76,7 @@ D.WEAPONS = {
   bonesword:  { name:'Bone sword',     type:'blade',  art:'sword',  might:5,  hit:82, range:[1,1], scale:{phys:'A'} },
   bonebow:    { name:'Bone bow',       type:'bow',    art:'bow',    might:5,  hit:80, range:[2,3], scale:{rng:'A'} },
   darkrite:   { name:'Dark rite',      type:'faith',  art:'tome',   might:4,  hit:85, range:[1,2], scale:{faith:'A'} },
+  bile:       { name:'Bile claws',     type:'blade',  art:'claw',   might:4,  hit:85, range:[1,1], scale:{phys:'A'} },
   claws:      { name:'Claws',          type:'blade',  art:'claw',   might:5,  hit:90, keen:1, range:[1,1], scale:{phys:'A'} },
   kingsmaul:  { name:"King's maul",    type:'blade',  art:'mace',   might:9,  hit:78, range:[1,1], scale:{phys:'A'} },
   wardenblade:{ name:"Warden's blade", type:'blade',  art:'sword',  might:8,  hit:85, range:[1,1], scale:{phys:'A'} },
@@ -57,7 +90,7 @@ D.PERKS = {
   trapSense:  { name:'Trap sense',     desc:'Reveals hidden traps within 3 tiles.' },
   eagleEye:   { name:'Eagle eye',      desc:'+1 range with bows.' },
   quickShot:  { name:'Quick shot',     desc:'Bonus action: fire a bow shot at -20 hit.', bonus:true },
-  readIntent: { name:'Read intent',    desc:'See which hero each enemy plans to attack.' },
+  readIntent: { name:'Read intent',    desc:'See how much damage each enemy plans to deal, not just who it targets.' },
   backstab:   { name:'Backstab',       desc:'+40% damage if another ally is next to the target.' },
   shadowmeld: { name:'Shadowmeld',     desc:'Cannot be targeted from 3+ tiles away, even in light.' },
   swiftMend:  { name:'Swift mend',     desc:'Healing is a bonus action, so you can heal and attack in one turn.' },
@@ -185,15 +218,16 @@ D.ENEMIES = {
   skelarcher:{name:'Skeleton archer',body:'skeleton', stats:{hp:13,def:2,phys:2,rng:6,arc:0,ward:1,faith:0,spd:5,stl:2}, weapons:['bonebow'], move:3, ai:'guard', look:{cloth:0x3a3a4a, accent:0x6b4a2b, gear:'none', weapon:'bow'} },
   cultist:  { name:'Cultist',        body:'human',    stats:{hp:14,def:2,phys:2,rng:1,arc:2,ward:5,faith:6,spd:5,stl:3}, weapons:['darkrite','mendstaff'], move:4, ai:'support', look:{cloth:0x6a1a20, accent:0x1a1423, gear:'cultist', weapon:'tome', skin:0xc8b8a8} },
   ghoul:    { name:'Ghoul',          body:'ghoul',    stats:{hp:18,def:2,phys:7,rng:0,arc:0,ward:2,faith:0,spd:8,stl:4}, weapons:['claws'], move:5, ai:'charge', look:{cloth:0x3a4a3a, accent:0x2a2a2a, gear:'none', weapon:'claw'} },
+  bloater:  { name:'Bloater',        body:'ghoul',    stats:{hp:15,def:1,phys:5,rng:0,arc:0,ward:1,faith:0,spd:3,stl:0}, weapons:['bile'], move:3, ai:'charge', volatile:true, scale:1.15, look:{cloth:0x5a7a2a, accent:0x9ad040, gear:'none', weapon:'claw', skin:0x9aba68} },
   goblinking:{name:'Goblin King',    body:'goblin',   stats:{hp:48,def:5,phys:10,rng:1,arc:0,ward:3,faith:0,spd:4,stl:1}, weapons:['kingsmaul'], move:3, ai:'charge', boss:true, scale:1.6, look:{cloth:0x8a2020, accent:0xe8a33d, gear:'crown', weapon:'mace'} },
   warden:   { name:'Bone Warden',    body:'skeleton', stats:{hp:52,def:6,phys:9,rng:1,arc:6,ward:5,faith:0,spd:5,stl:1}, weapons:['wardenblade','gravecall'], move:3, ai:'charge', boss:true, scale:1.6, look:{cloth:0x2a2a3a, accent:0x7fe0d0, gear:'warden', weapon:'sword'} },
 };
 // enemy groups by depth band
 D.ENCOUNTERS = [
   ['cutter','cutter','archer','hexer','brute'],
-  ['cutter','archer','skeleton','skelarcher','hexer','brute'],
-  ['skeleton','skelarcher','cultist','ghoul','brute','archer'],
-  ['skeleton','skelarcher','cultist','ghoul','ghoul','cultist'],
+  ['cutter','archer','skeleton','skelarcher','hexer','brute','bloater'],
+  ['skeleton','skelarcher','cultist','ghoul','brute','archer','bloater'],
+  ['skeleton','skelarcher','cultist','ghoul','ghoul','cultist','bloater','bloater'],
 ];
 
 D.DICE = {
@@ -203,10 +237,12 @@ D.DICE = {
   lucky:  { color:0x5fd3f0, name:'Lucky d6',  faces:[3,3,4,4,5,6],      price:110 },
   gilded: { color:0xe8a33d, name:'Gilded d6', faces:[2,3,4,5,6,'★'],    price:180 },
   wild:   { color:0x8a5ac8, name:'Wild d10',  faces:[1,2,3,4,5,6,7,8,9,10], price:200 },
+  blast:  { color:0xff7a30, name:'Blast d6',  faces:[1,2,3,4,5,6],      price:150, explode:true, desc:'Explodes: a 6 rolls again and adds.' },
+  glass:  { color:0xbfe8f0, name:'Glass d8',  faces:[1,2,3,4,5,6,7,8],  price:70,  glass:true, desc:'Rolling an 8 doubles it to 16, then the die shatters.' },
 };
 D.ITEMS = {
-  potion:   { name:'Healing potion', desc:'Bonus action: heal 12 HP.', price:30 },
-  firebomb: { name:'Firebomb',       desc:'Bonus action: 6 damage to an enemy within 3 tiles and 3 to its neighbors.', price:45 },
+  potion:   { name:'Healing potion', desc:'Bonus action: heal 2d4 + 6 HP.', price:30 },
+  firebomb: { name:'Firebomb',       desc:'Bonus action: 2d6 damage to an enemy within 3 tiles, half to enemies next to it.', price:45 },
 };
 
 D.EVENTS = [
@@ -221,6 +257,32 @@ D.EVENTS = [
   { id:'fountain', title:'A clear fountain', text:'Fresh water, impossibly clean, bubbles up from the stone.',
     choices:[ { label:'Drink (heal party 50%)', effect:'heal50' }, { label:'Fill flasks (+1 potion)', effect:'potion1' } ] },
 ];
+
+// run relics: passive rule changes for the rest of a run. cursed ones are strong with a drawback.
+D.RELICS = {
+  weighted: { name:'Weighted bones',  desc:'Every movement die rolls +1.' },
+  parry:    { name:'Parrying charm',  desc:'The first riposte against your heroes each battle is parried.' },
+  ember:    { name:'Ember heart',     desc:'Firebombs deal +3 damage.' },
+  leech:    { name:'Leech ring',      desc:'Heroes heal 1 HP on every hit.' },
+  scoutmap: { name:"Scout's map",     desc:'+2 move for every hero on turn 1.' },
+  luckycoin:{ name:'Lucky coin',      desc:'Heroes crit on 1 lower.' },
+  banner:   { name:'War banner',      desc:'+5 hit for every hero.' },
+  goldtooth:{ name:'Gold tooth',      desc:'+50% gold from enemies.' },
+  thorns:   { name:'Thorn mail',      desc:'Enemies that hit a hero in melee take 2 damage.' },
+  phoenix:  { name:'Phoenix feather', desc:'The first hero knocked out each battle rises with 40% HP.' },
+  sparedie: { name:'Spare die',       desc:'Roll an extra Iron d4 every turn.' },
+  fieldkit: { name:'Field kit',       desc:'Potions heal 4 more.' },
+  bloodpact:{ name:'Blood pact',      cursed:true, desc:'+3 damage on all hero attacks. Curse: heroes start every battle 15% hurt.' },
+  crown:    { name:'Cracked crown',   cursed:true, desc:'Heroes crit on 2 lower. Curse: enemies get +10 hit.' },
+  greed:    { name:'Greed idol',      cursed:true, desc:'Double gold from enemies. Curse: enemies have +20% HP.' },
+  hunger:   { name:'Hungering edge',  cursed:true, desc:'+25% hero damage. Curse: enemies riposte on rolls of 1-7.' },
+};
+D.OATHS = {
+  none:    { name:'No oath',          desc:'A normal run.' },
+  greed:   { name:'Oath of greed',    desc:'+50% gold from enemies. Enemies have +15% HP.' },
+  peril:   { name:'Oath of peril',    desc:'Start with a random relic. Enemies get +1 move and +10 hit.' },
+  ascetic: { name:'Oath of the ascetic', desc:'Potions and firebombs cannot be used (Brew too). Every hero gets +40 XP after each win.' },
+};
 
 D.XP_PER_LEVEL = 100;
 D.MAX_LEVEL = 10;

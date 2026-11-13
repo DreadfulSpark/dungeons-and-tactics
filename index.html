@@ -60,6 +60,14 @@ html,body{margin:0;height:100%;background:#0c0910;color:var(--bone);font-family:
 .die.used{opacity:.3;cursor:default}
 .die.star{background:var(--amber)}
 .die.rolling{animation:roll .09s linear infinite}
+#tray{flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 24px)}
+.die .pairtag{position:absolute;top:-7px;right:-7px;font-style:normal;font-size:6px;line-height:1;background:#8a5ac8;color:#fff;padding:3px 4px;border:2px solid #1a1423}
+.die.rr{outline:3px dashed var(--teal2);animation:glow 1s ease-in-out infinite}
+.trayx{display:flex;flex-direction:column;gap:4px}.trayx .btn{font-size:8px;padding:6px 8px}.trayx .btn.on{background:var(--teal2);color:var(--ink)}
+.card.cursed{border-color:var(--ember);box-shadow:inset 0 0 0 2px #4a0e0e}.card.cursed .card-t{color:#ff8a70}
+.card.relic .card-t{color:var(--amber)}
+.relics{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}.relics::before{content:'Relics';font-size:8px;color:var(--mute);margin-right:4px}.relics span{font-size:9px;padding:6px 8px;cursor:help;background:var(--ink3);border:2px solid #4d3e5c}.relics span.cursed{border-color:var(--ember);color:#ff8a70}
+.oaths{display:flex;flex-direction:column;gap:8px;text-align:left}.oaths .btn{text-align:left;line-height:1.7}
 @keyframes roll{0%{transform:rotate(-8deg)}50%{transform:rotate(8deg) translateY(-4px)}100%{transform:rotate(-8deg)}}
 #endBtn{margin-left:6px}
 #actions{position:fixed;right:12px;bottom:96px;display:none;flex-direction:column;gap:4px;min-width:220px;max-height:calc(100% - 330px);overflow:auto}
@@ -131,15 +139,15 @@ html,body{margin:0;height:100%;background:#0c0910;color:var(--bone);font-family:
 .wrow{display:flex;justify-content:space-between;align-items:center;gap:6px;margin:4px 0;font-size:8px}
 .hd{display:flex;gap:10px;align-items:center;text-align:left}
 /* run map */
-.map{position:relative;height:min(52vh,420px);background:rgba(26,20,35,.9);border:3px solid var(--ink3);margin-bottom:10px}
+.map{position:relative;height:min(58vh,460px);background:rgba(26,20,35,.9);border:3px solid var(--ink3);margin-bottom:10px}
 .map svg{position:absolute;inset:0;width:100%;height:100%}
 .map line{stroke:#4d3e5c;stroke-width:.6;vector-effect:non-scaling-stroke;stroke-width:3;stroke-dasharray:6 6}
 .map line.on{stroke:var(--amber)}
-.mnode{position:absolute;transform:translate(-50%,-50%);font-family:var(--px);font-size:8px;padding:8px 6px;min-width:70px;text-align:center;background:var(--ink3);color:var(--bone);border:3px solid #4d3e5c;cursor:default;opacity:.55}
+.mnode{position:absolute;transform:translate(-50%,-50%);font-family:var(--px);font-size:10px;padding:10px 8px;min-width:84px;text-align:center;background:var(--ink3);color:var(--bone);border:3px solid #4d3e5c;cursor:default;opacity:.55}
 .mnode.avail{opacity:1;cursor:pointer;border-color:var(--amber);animation:glow 1.2s ease-in-out infinite}
 .mnode.avail:hover{transform:translate(-50%,-50%) scale(1.08)}
 .mnode.done{opacity:.35} .mnode.here{opacity:1;outline:3px solid var(--teal2)}
-.mnode.elite{background:#6a2a3a} .mnode.boss,.mnode.rescue{background:var(--ember);font-size:9px} .mnode.treasure{background:#7a5a20} .mnode.campfire{background:#2a5a4a} .mnode.event{background:#3a3a6a}
+.mnode.elite{background:#6a2a3a} .mnode.boss,.mnode.rescue{background:var(--ember);font-size:9px} .mnode.treasure{background:#7a5a20} .mnode.campfire{background:#2a5a4a} .mnode.event{background:#3a3a6a} .mnode.rift{background:#4a2a6a;color:#e0c8ff}
 @keyframes glow{50%{box-shadow:0 0 0 4px rgba(232,163,61,.35)}}
 .partyline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:8px}
 .pmini{display:flex;gap:4px;align-items:center;background:rgba(26,20,35,.94);border:2px solid var(--ink3);padding:4px 6px;min-width:140px}
@@ -238,13 +246,13 @@ html,body{margin:0;height:100%;background:#0c0910;color:var(--bone);font-family:
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/MaskPass.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="js/data.js"></script>
-<script src="js/sprites.js"></script>
-<script src="js/audio.js"></script>
-<script src="js/rooms.js"></script>
-<script src="js/dice.js"></script>
-<script src="js/battle.js"></script>
-<script src="js/meta.js"></script>
+<script src="js/data.js?v=4"></script>
+<script src="js/sprites.js?v=4"></script>
+<script src="js/audio.js?v=4"></script>
+<script src="js/rooms.js?v=4"></script>
+<script src="js/dice.js?v=4"></script>
+<script src="js/battle.js?v=4"></script>
+<script src="js/meta.js?v=4"></script>
 <script>
 if (!window.THREE) document.body.insertAdjacentHTML('beforeend', '<div style="position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;padding:20px;text-align:center;z-index:99">Could not load the 3D library. Check your internet connection and reload.</div>');
 else DT.meta.boot();
