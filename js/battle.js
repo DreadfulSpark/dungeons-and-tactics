@@ -191,6 +191,10 @@ const alive = team => B.units.filter(u => u.team === team && !u.dead);
 const unitAt = (x, z) => B.units.find(u => !u.dead && u.x === x && u.z === z);
 const has = (u, p) => u.perks && u.perks.has(p);
 
+const diceColor = b => b.color != null ? b.color : ((Object.values(D.DICE).find(x => x.name === b.name) || {}).color || 0xe8dcc0);
+const faceVal = v => v === '★' ? 6 : v;
+const sumVals = a => a.reduce((t, v) => t + faceVal(v), 0);
+const quickRoll = (faces, n, title, color, interactive) => DT.dice.roll(Array.from({ length: n }, () => ({ faces: DT.dice.dN(faces), color })), { title, fast: !interactive, interactive: !!interactive, result: v => ({ text: (n > 1 ? v.join(' + ') + ' = ' : '') + sumVals(v), cls: 'hit' }) });
 function perksFor(cls, level) { return new Set((D.CLASSES[cls]?.perks || []).filter(([, lv]) => level >= lv).map(([p]) => p)); }
 BT.perksFor = perksFor;
 
@@ -213,7 +217,7 @@ function addUnit(o) {
 }
 function place(u, x, z) { u.x = x; u.z = z; const [wx, wz] = WP(x, z); u.g.position.set(wx, tileAt(x, z).h, wz); }
 function moveTotal(u) {
-  let m = u.move + (u.stats.spd >= 8 ? 1 : 0);
+  let m = u.move + (u.stats.spd >= 8 ? 1 : 0) + (has(u, 'stepOfWind') ? 2 : 0) + (u.bonusMove || 0);
   if (u.die != null) { const v = B.dice[u.die].value; m += v === '★' ? 6 : v; }
   return m;
 }
@@ -266,6 +270,13 @@ function calc(a, d, wk, ax = a.x, az = a.z, dx = d.x, dz = d.z, extra = {}) {
   else if (dType && D.TRI[dType] === W2.type) { tri = .85; hit -= 10; mods.push(['Triangle x0.85', 0]); }
   let dmg = Math.max(1, Math.round((raw - defense) * tri));
   if (a.star) { dmg += 3; mods.push(['★ die +3', 1]); }
+  if (a.inspire) { dmg += a.inspire; mods.push([`Inspired +${a.inspire}`, 1]); }
+  if (a.mutagen) { dmg += a.mutagen; mods.push([`Mutagen +${a.mutagen}`, 1]); }
+  if (extra.power) { dmg += extra.power; mods.push([`Power die +${extra.power}`, 1]); }
+  if (d.hexed) mods.push(['Hexed +1d4', 1]);
+  if (has(a, 'divineSmite') && dd === 1) mods.push(['Smite +1d8', 1]);
+  if (has(d, 'deflect') && dd >= 2) { dmg = Math.max(1, dmg - 3); mods.push(['Deflect -3', 0]); }
+  if (has(a, 'aura') || B.units.some(o => !o.dead && o !== a && o.team === a.team && has(o, 'aura') && dist(o.x, o.z, ax, az) === 1)) { hit += 10; mods.push(['Aura +10 hit', 1]); }
   if (B.units.some(o => !o.dead && o !== d && o.team === d.team && has(o, 'guard') && dist(o.x, o.z, dx, dz) === 1)) { dmg = Math.max(1, dmg - 2); mods.push(['Guarded -2', 0]); }
   if (dt.type === 'rubble') { hit -= 20; mods.push(['Cover -20 hit', 0]); }
   if (!dt.lit && ranged) { hit -= 15; mods.push(['Darkness -15 hit', 0]); }
@@ -275,17 +286,18 @@ function calc(a, d, wk, ax = a.x, az = a.z, dx = d.x, dz = d.z, extra = {}) {
   hit = (21 - need) * 5;
   let critOn = 20 - (W2.keen || 0);
   if (!at.lit && a.stats.stl >= 6) { critOn -= 2; mods.push(['Shadow strike', 1]); }
+  if (d.hexed && has(a, 'darkPact')) { critOn -= 3; mods.push(['Dark pact', 1]); }
   critOn = Math.max(15, critOn);
   const critPct = Math.max(0, (21 - Math.max(critOn, need)) * 5);
   return { dmg, hit, need, critOn, critPct, mods, magic };
 }
-function calcHeal(h, wk, t) {
+function calcHeal(h, wk, t, raw) {
   const W2 = D.WEAPONS[wk]; let v = W2.might; for (const k in W2.scale) v += h.stats[k] * D.GRADE[W2.scale[k]];
   if (h.spec.includes('heal')) v *= 1.12;
   if (tileAt(h.x, h.z).type === 'altar') v *= 1.5;
-  return Math.max(0, Math.min(t.maxhp - t.hp, Math.round(v)));
+  return raw ? Math.round(v) : Math.max(0, Math.min(t.maxhp - t.hp, Math.round(v)));
 }
-function moveCost(t, from) { let c = 1; const dh = t.h - from.h; if (dh > 0) c += Math.round(dh * 2); if (t.type === 'rubble') c += 1; if (t.type === 'door' && !t.open) c += 1; return c; }
+function moveCost(t, from, u) { let c = 1; const free = u && has(u, 'stepOfWind'); const dh = t.h - from.h; if (dh > 0 && !free) c += Math.round(dh * 2); if (t.type === 'rubble' && !free) c += 1; if (t.type === 'door' && !t.open) c += 1; return c; }
 function canEnter(u, t) {
   if (!t || BLOCK.has(t.type)) return false;
   if (t.type === 'trap' && (u.team === 'enemy' || t.revealed)) return false;
@@ -301,7 +313,7 @@ function reachable(u, mp) {
     for (const [dx, dz] of N4) {
       const nx = cur.x + dx, nz = cur.z + dz, t = tileAt(nx, nz);
       if (!canEnter(u, t)) continue;
-      const c = cur.cost + moveCost(t, ct); if (c > mp) continue;
+      const c = cur.cost + moveCost(t, ct, u); if (c > mp) continue;
       const k = key(nx, nz), ex = best.get(k);
       if (!ex || ex.cost > c) { const n = { x:nx, z:nz, cost:c, prev:cur }; best.set(k, n); open.push(n); }
     }
@@ -422,8 +434,9 @@ function renderTray(rolling) {
   B.dice.forEach((d, i) => {
     const el = document.createElement('button');
     const owner = d.owner;
-    el.className = 'die' + (owner ? ' owned' : '') + (owner && owner.moved ? ' used' : '') + (B.selDie === i ? ' sel' : '') + (d.value === '★' ? ' star' : '') + (rolling ? ' rolling' : '');
-    el.innerHTML = `${rolling ? '?' : d.value}<small>${owner ? owner.name : d.name}</small>`;
+    el.className = 'die' + (owner ? ' owned' : '') + ((owner && owner.moved) || d.spent ? ' used' : '') + (B.selDie === i ? ' sel' : '') + (d.value === '★' ? ' star' : '') + (rolling ? ' rolling' : '');
+    el.style.setProperty('--dc', '#' + d.color.toString(16).padStart(6, '0'));
+    el.innerHTML = `${rolling ? '?' : d.value}<small>${d.spent ? 'Power' : owner ? owner.name : d.name}</small>`;
     el.setAttribute('aria-label', d.name + ' showing ' + d.value);
     el.onclick = () => onDie(i);
     ui.tray.appendChild(el);
@@ -433,15 +446,16 @@ function renderTray(rolling) {
   ui.tray.appendChild(end);
 }
 async function rollDice() {
-  B.dice = B.bag.map(b => ({ name: b.name, faces: b.faces, value: '?', owner: null }));
-  B.selDie = null; renderTray(true); SFX('dice');
-  await wait(650);
-  B.dice.forEach(d => d.value = d.faces[Math.floor(Math.random() * d.faces.length)]);
-  renderTray(false); SFX('click');
+  B.dice = B.bag.map(b => ({ name: b.name, faces: b.faces, color: diceColor(b), value: '?', owner: null, spent: false }));
+  B.selDie = null; renderTray(true);
+  const vals = await DT.dice.roll(B.dice.map(d => ({ faces: d.faces, color: d.color })), { interactive: true, title: `Turn ${B.turn}: roll your movement dice`, crit: v => v === '★' || v >= 8, result: v => ({ text: 'Give each hero a die: Move = base + die', cls: 'hit' }), hold: 700 });
+  B.dice.forEach((d, i) => d.value = vals[i]);
+  renderTray(false); ui.tray.classList.remove('pop'); void ui.tray.offsetWidth; ui.tray.classList.add('pop');
 }
 function onDie(i) {
   if (B.busy || B.phase !== 'player') return;
   const d = B.dice[i];
+  if (d.spent) { SFX('error'); setHint('That die was spent as a power die.'); return; }
   if (d.owner && d.owner.moved) { SFX('error'); setHint(`That die is locked: ${d.owner.name} already moved.`); return; }
   const u = B.sel;
   if (u && u.team === 'hero' && !u.done && !u.moved) { assignDie(u, i); return; }
@@ -514,9 +528,17 @@ function openActions(u) {
   if (has(u, 'quickShot')) { const bw = u.weapons.find(w => D.WEAPONS[w].type === 'bow'); if (bw) items.push({ label: 'Quick shot (-20 hit)', cost: 'bonus', ok: !u.bonus && targetsFor(u, bw).length > 0, why: 'no target', fn: () => startTarget(u, { kind: 'attack', wk: bw, cost: 'bonus', hitMod: -20, hitLabel: 'Quick shot -20' }) }); }
   if (has(u, 'bash')) items.push({ label: 'Shield bash', cost: 'bonus', ok: !u.bonus && alive('enemy').some(e => dist(e.x, e.z, u.x, u.z) === 1), why: 'not adjacent', fn: () => startTarget(u, { kind: 'bash', cost: 'bonus' }) });
   if (has(u, 'blink')) items.push({ label: 'Blink', cost: 'bonus', ok: !u.bonus, why: 'used', fn: () => startTarget(u, { kind: 'blink', cost: 'bonus' }) });
-  if (B.items.potion > 0) items.push({ label: `Potion (${B.items.potion})`, cost: 'bonus', ok: !u.bonus && alive('hero').some(h => h.hp < h.maxhp && dist(h.x, h.z, u.x, u.z) <= 1), why: 'no one hurt nearby', fn: () => startTarget(u, { kind: 'potion', cost: 'bonus' }) });
-  if (B.items.firebomb > 0) items.push({ label: `Firebomb (${B.items.firebomb})`, cost: 'bonus', ok: !u.bonus && alive('enemy').some(e => dist(e.x, e.z, u.x, u.z) <= 3), why: 'too far', fn: () => startTarget(u, { kind: 'firebomb', cost: 'bonus' }) });
-  const ch = adjacentChest(u); if (ch) items.push({ label: 'Open chest', cost: 'bonus', ok: !u.bonus, why: 'used', fn: () => doChest(u, ch) });
+  if (B.items.potion > 0) items.push({ label: `Potion 2d4+6 (${B.items.potion})`, cost: 'bonus', ok: !u.bonus && alive('hero').some(h => h.hp < h.maxhp && dist(h.x, h.z, u.x, u.z) <= 1), why: 'no one hurt nearby', fn: () => startTarget(u, { kind: 'potion', cost: 'bonus' }) });
+  const fbR = has(u, 'volatile') ? 4 : 3;
+  if (B.items.firebomb > 0) items.push({ label: `Firebomb ${has(u, 'volatile') ? '3d6' : '2d6'} (${B.items.firebomb})`, cost: 'bonus', ok: !u.bonus && alive('enemy').some(e => dist(e.x, e.z, u.x, u.z) <= fbR), why: 'too far', fn: () => startTarget(u, { kind: 'firebomb', cost: 'bonus' }) });
+  const allies = alive('hero');
+  if (has(u, 'layOnHands')) items.push({ label: 'Lay on hands (2d8)', cost: 'bonus', ok: !u.bonus && !u.lohUsed && allies.some(h => h.hp < h.maxhp && dist(h.x, h.z, u.x, u.z) <= 1), why: u.lohUsed ? 'used this battle' : 'no one hurt nearby', fn: () => startTarget(u, { kind: 'loh', cost: 'bonus' }) });
+  if (has(u, 'inspire')) items.push({ label: `Inspire (d${has(u, 'encore') ? 10 : 6})`, cost: 'bonus', ok: !u.bonus && allies.some(h => h !== u && !h.done && dist(h.x, h.z, u.x, u.z) <= 3), why: 'no ally in 3', fn: () => startTarget(u, { kind: 'inspire', cost: 'bonus' }) });
+  if (has(u, 'hex')) items.push({ label: 'Hex (+1d4 per hit)', cost: 'bonus', ok: !u.bonus && alive('enemy').some(e => !e.hexed && dist(e.x, e.z, u.x, u.z) <= 4), why: 'no target in 4', fn: () => startTarget(u, { kind: 'hex', cost: 'bonus' }) });
+  if (has(u, 'flurry')) items.push({ label: 'Flurry (1d6)', cost: 'bonus', ok: !u.bonus && alive('enemy').some(e => dist(e.x, e.z, u.x, u.z) === 1), why: 'not adjacent', fn: () => startTarget(u, { kind: 'flurry', cost: 'bonus' }) });
+  if (has(u, 'brew')) items.push({ label: 'Brew (d6)', cost: 'bonus', ok: !u.bonus && !u.brewUsed, why: 'used this battle', fn: () => doBrew(u) });
+  if (has(u, 'mutagen')) items.push({ label: 'Mutagen (d4)', cost: 'bonus', ok: !u.bonus && !u.mutUsed, why: 'used this battle', fn: () => doMutagen(u) });
+  const ch = adjacentChest(u); if (ch) items.push({ label: 'Open chest (d20)', cost: 'bonus', ok: !u.bonus, why: 'used', fn: () => doChest(u, ch) });
   ui.actions.innerHTML = `<div class="ah"><span>${u.name}</span><span class="pips"><i class="${u.moved ? 'off' : ''}">Move</i><i class="${u.act ? 'off' : ''}">Action</i><i class="${u.bonus ? 'off' : ''}">Bonus</i></span></div>`;
   items.forEach(it => {
     const b = document.createElement('button'); b.className = 'btn' + (it.ok ? (it.cost === 'act' ? ' primary' : ' bonus') : '');
@@ -545,18 +567,28 @@ function startTarget(u, pending) {
   } else if (k === 'bash') { alive('enemy').filter(e => dist(e.x, e.z, u.x, u.z) === 1).forEach(e => setHL(e.x, e.z, COL.bonus, .6)); setHint('Tap an adjacent enemy to shove it.'); }
   else if (k === 'blink') { blinkTiles(u).forEach(t => setHL(t.x, t.z, COL.bonus, .45)); setHint('Tap a tile to teleport to.'); }
   else if (k === 'potion') { alive('hero').filter(h => h.hp < h.maxhp && dist(h.x, h.z, u.x, u.z) <= 1).forEach(h => setHL(h.x, h.z, COL.heal, .6)); setHint('Tap yourself or an adjacent ally to drink.'); }
-  else if (k === 'firebomb') { alive('enemy').filter(e => dist(e.x, e.z, u.x, u.z) <= 3).forEach(e => setHL(e.x, e.z, COL.attack, .6)); setHint('Tap an enemy within 3 tiles.'); }
+  else if (k === 'firebomb') { const r = has(u, 'volatile') ? 4 : 3; alive('enemy').filter(e => dist(e.x, e.z, u.x, u.z) <= r).forEach(e => setHL(e.x, e.z, COL.attack, .6)); setHint(`Tap an enemy within ${r} tiles.`); }
+  else if (k === 'loh') { alive('hero').filter(h => h.hp < h.maxhp && dist(h.x, h.z, u.x, u.z) <= 1).forEach(h => setHL(h.x, h.z, COL.heal, .6)); setHint('Tap yourself or an adjacent ally.'); }
+  else if (k === 'inspire') { alive('hero').filter(h => h !== u && !h.done && dist(h.x, h.z, u.x, u.z) <= 3).forEach(h => setHL(h.x, h.z, COL.bonus, .6)); setHint('Tap an ally within 3 to inspire.'); }
+  else if (k === 'hex') { alive('enemy').filter(e => !e.hexed && dist(e.x, e.z, u.x, u.z) <= 4).forEach(e => setHL(e.x, e.z, COL.bonus, .6)); setHint('Tap an enemy within 4 to hex.'); }
+  else if (k === 'flurry') { alive('enemy').filter(e => dist(e.x, e.z, u.x, u.z) === 1).forEach(e => setHL(e.x, e.z, COL.attack, .6)); setHint('Tap an adjacent enemy.'); }
   ui.actions.innerHTML = ''; const back = document.createElement('button'); back.className = 'btn'; back.textContent = 'Back'; back.onclick = () => { SFX('click'); hideForecast(); select(u); }; ui.actions.appendChild(back);
 }
 function blinkTiles(u) { return tiles.filter(t => !BLOCK.has(t.type) && t.type !== 'trap' && !unitAt(t.x, t.z) && dist(t.x, t.z, u.x, u.z) <= 3 && dist(t.x, t.z, u.x, u.z) > 0); }
 
 // ---- forecast
 function hideForecast() { ui.forecast.classList.remove('show'); }
+function powerChips(p) {
+  const free = B.dice.map((d, i) => ({ d, i })).filter(({ d }) => !d.owner && !d.spent && d.value !== '?');
+  if (!free.length) return '<div class="mods mute">Power dice: none free (unassigned dice can be spent here)</div>';
+  return `<div class="pchips"><span class="mute">Power die:</span> ${free.map(({ d, i }) => `<button class="pchip ${p.powerIdx === i ? 'on' : ''}" data-pi="${i}" style="--dc:#${d.color.toString(16).padStart(6, '0')}">+${faceVal(d.value)}</button>`).join('')}</div>`;
+}
 function showForecast(u, t, p) {
   B.target = t;
+  p.power = p.powerIdx != null ? faceVal(B.dice[p.powerIdx].value) : 0;
   if (p.kind === 'heal') {
-    const amt = calcHeal(u, p.wk, t);
-    ui.forecast.innerHTML = `<div class="fc-title"><span class="fc-name">${u.name}</span> heals <span class="fc-name">${t.name}</span></div><div class="fc-big">HP ${t.hp} &gt; <span style="color:#9cf08a">${t.hp + amt}</span> (+${amt})</div>${has(u, 'sanctuary') ? '<div class="mods">Sanctuary: allies next to them heal half</div>' : ''}${p.cost === 'bonus' ? '<div class="mods">Swift mend: bonus action</div>' : ''}<div class="fc-btns"><button class="btn primary" id="fcGo">Heal</button><button class="btn" id="fcBack">Back</button></div>`;
+    const amt = calcHeal(u, p.wk, t, true) + p.power;
+    ui.forecast.innerHTML = `<div class="fc-title"><span class="fc-name">${u.name}</span> heals <span class="fc-name">${t.name}</span></div><div class="fc-big">+${amt} + 1d6 <span class="mute">(HP ${t.hp}/${t.maxhp})</span></div>${powerChips(p)}${has(u, 'sanctuary') ? '<div class="mods">Sanctuary: allies next to them heal half</div>' : ''}${p.cost === 'bonus' ? '<div class="mods">Swift mend: bonus action</div>' : ''}<div class="fc-btns"><button class="btn primary" id="fcGo">Heal</button><button class="btn" id="fcBack">Back</button></div>`;
   } else {
     const c = calc(u, t, p.wk, u.x, u.z, t.x, t.z, p);
     const cw = counterWeapon(t, u); const cc = cw ? calc(t, u, cw) : null;
@@ -564,14 +596,16 @@ function showForecast(u, t, p) {
       <div class="fc-row"><div><div class="fc-big">${c.dmg}</div><div class="mute">damage</div></div><div><div class="fc-big">${c.hit}%</div><div class="mute">hit (d20 ${c.need}+)</div></div><div><div class="fc-big">${c.critPct}%</div><div class="mute">crit (${c.critOn}+)</div></div><div><div class="fc-big">${t.hp} &gt; ${Math.max(0, t.hp - c.dmg)}</div><div class="mute">their HP</div></div></div>
       <div class="fc-risk">${cc ? `Roll 1-${D.RIPOSTE_MAX} and ${t.name} ripostes for ${cc.dmg} (${cc.hit}% hit)` : `${t.name} can't riposte from there`}</div>
       <div class="mods">${c.mods.map(([m, good]) => `<span class="${good ? '' : 'bad'}">${m}</span>`).join(' · ') || 'No modifiers'}</div>
+      ${powerChips(p)}
       <div class="fc-btns"><button class="btn primary" id="fcGo">Roll d20</button><button class="btn" id="fcBack">Back</button></div>`;
   }
   ui.forecast.classList.add('show');
+  ui.forecast.querySelectorAll('.pchip').forEach(b => b.onclick = () => { const i = +b.dataset.pi; p.powerIdx = p.powerIdx === i ? null : i; SFX('assign'); showForecast(u, t, p); });
   $('fcGo').onclick = () => { if (!B.busy) confirmTarget(u, t, p); };
   $('fcBack').onclick = () => { SFX('click'); hideForecast(); B.target = null; };
   setHint('Confirm, or tap the target again.');
 }
-function confirmTarget(u, t, p) { if (p.kind === 'heal') doHeal(u, t, p); else doAttack(u, t, p); }
+function confirmTarget(u, t, p) { if (p.powerIdx != null) { B.dice[p.powerIdx].spent = true; renderTray(); } if (p.kind === 'heal') doHeal(u, t, p); else doAttack(u, t, p); }
 
 // ---- move preview ghost
 function ghostShow(u, x, z) {
@@ -619,7 +653,14 @@ function revealTrap(t) { if (t.revealed) return; t.revealed = true; trapMeshes.g
 async function springTrap(u, t) {
   revealTrap(t); const m = trapMeshes.get(key(t.x, t.z));
   SFX('trap'); await tween(80, p => { m.spikes.position.y = .2 * p; });
-  u.trapped = true; await damage(u, 6, null, '#e07060', 'Trap! ');
+  u.trapped = true;
+  let dmg = 6;
+  if (u.team === 'hero') {
+    const need = Math.max(2, 13 - Math.floor(u.stats.spd / 2));
+    const [v] = await DT.dice.roll([{ faces: DT.dice.d20(), color: 0x5fd3f0 }], { interactive: true, title: `Trap! Dodge roll: need ${need}+`, crit: x => x >= need, result: ([x]) => ({ text: x >= need ? 'Dodged! Half damage' : 'Caught!', cls: x >= need ? 'crit' : 'miss' }), hold: 450 });
+    if (v >= need) dmg = 3;
+  }
+  await damage(u, dmg, null, '#e07060', 'Trap! ');
 }
 function senseTraps() {
   alive('hero').filter(h => has(h, 'trapSense')).forEach(h => tiles.forEach(t => { if (t.type === 'trap' && !t.revealed && dist(h.x, h.z, t.x, t.z) <= 3) { revealTrap(t); popup(h, 'Trap spotted!', '#5fd3f0'); SFX('select'); } }));
@@ -645,14 +686,14 @@ function afterAction(u) {
   if (checkEnd()) return;
   if (u.dead) { deselect(); return; }
   // auto-finish when nothing meaningful is left
-  const anyBonus = has(u, 'blink') || has(u, 'bash') || has(u, 'quickShot') || has(u, 'extraAttack') || (has(u, 'swiftMend')) || B.items.potion > 0 || B.items.firebomb > 0 || adjacentChest(u);
+  const anyBonus = ['blink', 'bash', 'quickShot', 'extraAttack', 'swiftMend', 'inspire', 'hex', 'flurry'].some(k => has(u, k)) || (has(u, 'layOnHands') && !u.lohUsed) || (has(u, 'brew') && !u.brewUsed) || (has(u, 'mutagen') && !u.mutUsed) || B.items.potion > 0 || B.items.firebomb > 0 || adjacentChest(u);
   if (u.moved && u.act && (u.bonus || !anyBonus)) { finishUnit(u); return; }
   select(u, true);
 }
 async function doAttack(a, d, p) {
   B.busy = true; hideForecast(); hideActions(); clearHL(); setHint('');
   spend(a, p.cost);
-  await strike(a, d, p.wk, { hitMod: p.hitMod, hitLabel: p.hitLabel });
+  await strike(a, d, p.wk, { hitMod: p.hitMod, hitLabel: p.hitLabel, power: p.power || 0 });
   B.busy = false; afterAction(a);
 }
 async function strike(att, def, wk, opts = {}) {
@@ -660,15 +701,28 @@ async function strike(att, def, wk, opts = {}) {
   const cw = !opts.isRiposte ? counterWeapon(def, att) : null;
   c.noRiposte = !cw;
   face(att, def.x, def.z);
-  const r = await showD20(1 + Math.floor(Math.random() * 20), c, B.phase === 'enemy');
+  const hero = att.team === 'hero';
+  const judge = v => { const hit = v === 20 || (v !== 1 && v >= c.need); return { hit, crit: hit && v >= c.critOn }; };
+  const [roll] = await DT.dice.roll([{ faces: DT.dice.d20(), color: hero ? 0xe8a33d : 0x8a2020 }], {
+    interactive: hero && !opts.isRiposte, fast: !hero || opts.isRiposte,
+    title: `${opts.isRiposte ? 'Riposte! ' : ''}${att.name} > ${def.name} · need ${c.need}+`,
+    crit: v => judge(v).crit, fumble: v => v <= D.RIPOSTE_MAX && !c.noRiposte,
+    result: ([v]) => { const j = judge(v); return { text: (j.crit ? 'CRITICAL!' : j.hit ? 'HIT' : 'MISS') + (v <= D.RIPOSTE_MAX && !c.noRiposte ? '<small>Exposed: riposte!</small>' : ''), cls: j.crit ? 'crit' : j.hit ? 'hit' : 'miss' }; } });
+  const r = { roll, ...judge(roll) };
   await attackAnim(att, def, wk);
   if (!r.hit) { popup(def, 'Miss', '#8a8090'); SFX('miss'); }
   else {
-    const dmg = r.crit ? Math.round(c.dmg * 1.5) : c.dmg;
+    let dmg = r.crit ? Math.round(c.dmg * 1.5) : c.dmg;
+    const extra = [];
+    if (def.hexed) extra.push({ faces: DT.dice.dN(4), color: 0x8a5ac8 });
+    if (has(att, 'divineSmite') && dist(att.x, att.z, def.x, def.z) === 1) extra.push({ faces: DT.dice.dN(8), color: 0xf2e6c9 });
+    if (extra.length) { const ev = await DT.dice.roll(extra, { fast: true, title: def.hexed && extra.length === 1 ? 'Hex bonus' : 'Bonus damage', result: v => ({ text: '+' + sumVals(v), cls: 'hit' }), hold: 380 }); dmg += sumVals(ev); }
+    att.inspire = 0;
     SFX(r.crit ? 'crit' : 'hit'); shake(r.crit ? .55 : .22);
     await hitstop(r.crit ? 140 : 60);
     if (att.team === 'hero') att.xp += 10;
     await damage(def, dmg, att, r.crit ? '#ffd27a' : '#f2e6c9', r.crit ? 'CRIT ' : '', r.crit);
+    if (has(att, 'siphon') && !att.dead) { const hv = Math.min(att.maxhp - att.hp, Math.max(1, Math.round(dmg * .3))); if (hv > 0) { att.hp += hv; updateBar(att); popup(att, '+' + hv, '#c09cf0'); } }
     // splash perks
     const W2 = D.WEAPONS[wk];
     if (W2.type === 'arcane' && has(att, 'fireball')) for (const o of B.units.filter(o => !o.dead && o.team !== att.team && o !== def && dist(o.x, o.z, def.x, def.z) === 1)) { SFX('boom'); await damage(o, Math.max(1, Math.round(dmg / 2)), att, '#ff9a50', 'Fire '); }
@@ -692,7 +746,8 @@ async function kill(u, by) {
 async function doHeal(h, t, p) {
   B.busy = true; hideForecast(); hideActions(); clearHL();
   spend(h, p.cost);
-  const amt = calcHeal(h, p.wk, t);
+  const [hd] = await DT.dice.roll([{ faces: DT.dice.dN(6), color: 0x7bc950 }], { interactive: true, title: `${h.name} heals ${t.name}: +${calcHeal(h, p.wk, t, true) + (p.power || 0)} + 1d6`, result: v => ({ text: '+' + v[0], cls: 'hit' }), hold: 450 });
+  const amt = Math.max(0, Math.min(t.maxhp - t.hp, calcHeal(h, p.wk, t, true) + hd + (p.power || 0)));
   face(h, t.x, t.z); h.atk = true; setFrame(h, 2);
   SFX('heal');
   const [tx, tz] = WP(t.x, t.z); sparks(tx, tileAt(t.x, t.z).h + .3, tz, 0x9cf08a, 14, .7);
@@ -727,24 +782,80 @@ async function doBlink(u, t) {
 }
 async function doPotion(u, t) {
   B.busy = true; clearHL(); hideActions(); spend(u, 'bonus'); B.items.potion--; B.used.potion = (B.used.potion || 0) + 1;
-  const amt = Math.min(12, t.maxhp - t.hp); t.hp += amt; updateBar(t); SFX('heal'); popup(t, '+' + amt, '#9cf08a', true);
+  const pv = await DT.dice.roll([{ faces: DT.dice.dN(4), color: 0xc2412d }, { faces: DT.dice.dN(4), color: 0xc2412d }], { interactive: true, title: 'Healing potion: 2d4 + 6', result: v => ({ text: `${v[0]} + ${v[1]} + 6 = ${v[0] + v[1] + 6}`, cls: 'hit' }), hold: 450 });
+  const amt = Math.min(pv[0] + pv[1] + 6, t.maxhp - t.hp); t.hp += amt; updateBar(t); SFX('heal'); popup(t, '+' + amt, '#9cf08a', true);
   const [tx, tz] = WP(t.x, t.z); sparks(tx, .4, tz, 0x9cf08a, 12, .7);
   await wait(300); B.busy = false; afterAction(u);
 }
 async function doFirebomb(u, e) {
   B.busy = true; clearHL(); hideActions(); spend(u, 'bonus'); B.items.firebomb--;
+  const nd = has(u, 'volatile') ? 3 : 2;
+  const fv = await DT.dice.roll(Array.from({ length: nd }, () => ({ faces: DT.dice.dN(6), color: 0xff7a30 })), { interactive: true, title: `Firebomb: ${nd}d6`, crit: v => v === 6, result: v => ({ text: v.join(' + ') + ' = ' + sumVals(v), cls: 'hit' }), hold: 450 });
+  const fdmg = sumVals(fv);
   face(u, e.x, e.z); await projectile(u, e, 'arcane'); SFX('boom'); shake(.45);
   const [ex, ez] = WP(e.x, e.z); sparks(ex, .4, ez, 0xff7a30, 24, 1.4);
   const near = B.units.filter(o => !o.dead && o.team === 'enemy' && o !== e && dist(o.x, o.z, e.x, e.z) === 1);
-  await damage(e, 6, u, '#ff9a50', 'Boom ');
-  for (const o of near) await damage(o, 3, u, '#ff9a50');
+  await damage(e, fdmg, u, '#ff9a50', 'Boom ', true);
+  for (const o of near) await damage(o, Math.max(1, Math.floor(fdmg / 2)), u, '#ff9a50');
   B.busy = false; afterAction(u);
+}
+async function doLayOnHands(u, t) {
+  B.busy = true; clearHL(); hideActions(); spend(u, 'bonus'); u.lohUsed = true;
+  const v = await DT.dice.roll([{ faces: DT.dice.dN(8), color: 0xf2e6c9 }, { faces: DT.dice.dN(8), color: 0xf2e6c9 }], { interactive: true, title: 'Lay on hands: 2d8 + half Faith', result: x => ({ text: `${x[0]} + ${x[1]} + ${Math.floor(u.stats.faith / 2)}`, cls: 'hit' }), hold: 450 });
+  const amt = Math.min(t.maxhp - t.hp, v[0] + v[1] + Math.floor(u.stats.faith / 2));
+  t.hp += amt; updateBar(t); SFX('heal'); popup(t, '+' + amt, '#fff0b0', true); u.xp += 10;
+  const [tx, tz] = WP(t.x, t.z); sparks(tx, .5, tz, 0xfff0b0, 16, .7);
+  await wait(300); B.busy = false; afterAction(u);
+}
+async function doInspire(u, t) {
+  B.busy = true; clearHL(); hideActions(); spend(u, 'bonus');
+  const n = has(u, 'encore') ? 10 : 6;
+  const [v] = await DT.dice.roll([{ faces: DT.dice.dN(n), color: 0xe8a33d }], { interactive: true, title: `Inspire ${t.name}: d${n}`, crit: x => x >= n - 1, result: ([x]) => ({ text: `+${x} damage${t.moved ? '' : ', +' + x + ' move'}`, cls: 'hit' }), hold: 450 });
+  t.inspire = v; if (!t.moved) t.bonusMove = (t.bonusMove || 0) + v;
+  SFX('levelup'); popup(t, 'Inspired +' + v, '#ffd27a', true); updateBar(t); u.xp += 5;
+  const [tx, tz] = WP(t.x, t.z); sparks(tx, .9, tz, 0xffd27a, 14, .6);
+  await wait(250); B.busy = false; afterAction(u);
+}
+async function doHex(u, e) {
+  B.busy = true; clearHL(); hideActions(); spend(u, 'bonus'); face(u, e.x, e.z);
+  e.hexed = true; SFX('cast'); popup(e, 'Hexed!', '#c09cf0', true); u.xp += 5;
+  const [ex, ez] = WP(e.x, e.z); sparks(ex, .8, ez, 0xb07fe0, 18, .6);
+  e.mat.color.setHex(0xd8b8ff);
+  await wait(350); B.busy = false; afterAction(u);
+}
+async function doFlurry(u, e) {
+  B.busy = true; clearHL(); hideActions(); spend(u, 'bonus');
+  const [v] = await DT.dice.roll([{ faces: DT.dice.dN(6), color: 0xc87a2a }], { interactive: true, title: `Flurry: 1d6 + ${Math.floor(u.stats.phys / 2)}`, crit: x => x === 6, result: ([x]) => ({ text: '' + (x + Math.floor(u.stats.phys / 2)), cls: 'hit' }), hold: 380 });
+  face(u, e.x, e.z); u.atk = true; setFrame(u, 2); SFX('hit'); shake(.2);
+  const start = u.g.position.clone(); const [bx, bz] = WP(e.x, e.z); const dir = new THREE.Vector3(bx - start.x, 0, bz - start.z).normalize();
+  for (let i = 0; i < 2; i++) { await tween(60, q => u.g.position.copy(start).addScaledVector(dir, .3 * q)); await tween(60, q => u.g.position.copy(start).addScaledVector(dir, .3 * (1 - q))); }
+  u.atk = false; u.xp += 5;
+  await damage(e, v + Math.floor(u.stats.phys / 2), u, '#f2e6c9', 'Flurry ');
+  B.busy = false; afterAction(u);
+}
+async function doBrew(u) {
+  B.busy = true; clearHL(); hideActions(); spend(u, 'bonus'); u.brewUsed = true;
+  const [v] = await DT.dice.roll([{ faces: DT.dice.dN(6), color: 0x7bc950 }], { interactive: true, title: 'Brew: 1-3 potion · 4-5 firebomb · 6 both', crit: x => x === 6, result: ([x]) => ({ text: x === 6 ? 'Both!' : x >= 4 ? 'Firebomb' : 'Potion', cls: 'hit' }), hold: 450 });
+  if (v <= 3 || v === 6) B.items.potion = (B.items.potion || 0) + 1;
+  if (v >= 4) B.items.firebomb = (B.items.firebomb || 0) + 1;
+  SFX('chest'); popup(u, v === 6 ? 'Potion + firebomb!' : v >= 4 ? '+1 firebomb' : '+1 potion', '#9cf08a', true);
+  await wait(300); B.busy = false; afterAction(u);
+}
+async function doMutagen(u) {
+  B.busy = true; clearHL(); hideActions(); spend(u, 'bonus'); u.mutUsed = true;
+  const [v] = await DT.dice.roll([{ faces: DT.dice.dN(4), color: 0x7bc950 }], { interactive: true, title: 'Mutagen: d4', result: ([x]) => ({ text: `+${x} damage${u.moved ? '' : ', +2 move'}`, cls: 'hit' }), hold: 450 });
+  u.mutagen = v; if (!u.moved) u.bonusMove = (u.bonusMove || 0) + 2;
+  SFX('levelup'); popup(u, 'Mutagen +' + v, '#9cf08a', true); updateBar(u);
+  await wait(250); B.busy = false; afterAction(u);
 }
 async function doChest(u, t) {
   B.busy = true; hideActions(); spend(u, 'bonus'); t.opened = true; face(u, t.x, t.z);
   const lid = chestLids.get(key(t.x, t.z)); SFX('chest');
   await tween(300, p => { lid.rotation.x = -1.9 * easeOut(p); });
   const [cx, cz] = WP(t.x, t.z); sparks(cx, .5, cz, 0xffd27a, 18, .9);
+  const need = Math.max(2, 12 - Math.floor(u.stats.stl / 2));
+  const [lp] = await DT.dice.roll([{ faces: DT.dice.d20(), color: 0xe8a33d }], { interactive: true, title: `Pick the lock: need ${need}+ for a bonus`, crit: v => v >= need, result: ([v]) => ({ text: v >= need ? 'Picked clean! Bonus gold' : 'Pried open', cls: v >= need ? 'crit' : 'hit' }), hold: 450 });
+  if (lp >= need) { const bonus = Math.round((10 + Math.random() * 15) * (1 + .2 * (B.depth - 1))); B.gold += bonus; popup(u, '+' + bonus + 'g', '#e8a33d'); SFX('coin'); }
   const loot = DT.meta.rollChestLoot(B.depth);
   B.loot.push(loot); popup(u, loot.label, '#e8a33d', true); u.xp += 5;
   if (loot.kind === 'gold') B.gold += loot.amount;
@@ -829,12 +940,16 @@ async function aiAct(e) {
 // ================= PHASES =================
 async function startPlayerPhase() {
   B.phase = 'player'; B.busy = true; setTurnLabel(); deselect();
-  alive('hero').forEach(h => { h.moved = false; h.act = false; h.bonus = false; h.done = false; h.die = null; h.star = false; h.trapped = false; h.sx = h.x; h.sz = h.z; setDone(h, false); updateBar(h); });
+  alive('hero').forEach(h => { h.moved = false; h.act = false; h.bonus = false; h.done = false; h.die = null; h.star = false; h.trapped = false; h.bonusMove = 0; h.mutagen = 0; h.sx = h.x; h.sz = h.z; setDone(h, false); updateBar(h); });
   // mending aura
   for (const h of alive('hero').filter(h => has(h, 'mendAura'))) alive('hero').filter(o => o !== h && dist(o.x, o.z, h.x, h.z) === 1 && o.hp < o.maxhp).forEach(o => { const a = Math.min(3, o.maxhp - o.hp); o.hp += a; updateBar(o); popup(o, '+' + a, '#9cf08a'); });
   senseTraps();
   banner('Your phase'); SFX('phase');
   await wait(650);
+  if (alive('hero').some(h => has(h, 'songOfRest')) && alive('hero').some(h => h.hp < h.maxhp)) {
+    const [v] = await quickRoll(4, 1, 'Song of rest: everyone heals', 0x2a6a5a, false);
+    alive('hero').forEach(h => { const a = Math.min(v, h.maxhp - h.hp); if (a > 0) { h.hp += a; updateBar(h); popup(h, '+' + a, '#9cf08a'); } });
+  }
   await rollDice();
   computeIntents();
   B.busy = false; setHint(defaultHint()); drawThreat();
@@ -894,7 +1009,11 @@ function onTile(t, touch) {
     if (p.kind === 'bash' && u && u.team === 'enemy' && dist(u.x, u.z, s.x, s.z) === 1) return doBash(s, u);
     if (p.kind === 'blink' && blinkTiles(s).includes(t)) return doBlink(s, t);
     if (p.kind === 'potion' && u && u.team === 'hero' && u.hp < u.maxhp && dist(u.x, u.z, s.x, s.z) <= 1) return doPotion(s, u);
-    if (p.kind === 'firebomb' && u && u.team === 'enemy' && dist(u.x, u.z, s.x, s.z) <= 3) return doFirebomb(s, u);
+    if (p.kind === 'firebomb' && u && u.team === 'enemy' && dist(u.x, u.z, s.x, s.z) <= (has(s, 'volatile') ? 4 : 3)) return doFirebomb(s, u);
+    if (p.kind === 'loh' && u && u.team === 'hero' && u.hp < u.maxhp && dist(u.x, u.z, s.x, s.z) <= 1) return doLayOnHands(s, u);
+    if (p.kind === 'inspire' && u && u.team === 'hero' && u !== s && !u.done && dist(u.x, u.z, s.x, s.z) <= 3) return doInspire(s, u);
+    if (p.kind === 'hex' && u && u.team === 'enemy' && !u.hexed && dist(u.x, u.z, s.x, s.z) <= 4) return doHex(s, u);
+    if (p.kind === 'flurry' && u && u.team === 'enemy' && dist(u.x, u.z, s.x, s.z) === 1) return doFlurry(s, u);
     return;
   }
   if (B.mode === 'hero' && s && !s.moved && B.reach) {
@@ -923,6 +1042,8 @@ function bindInput() {
   cv.addEventListener('wheel', e => { if (!B) return; B.zoom = Math.max(.6, Math.min(1.5, B.zoom + Math.sign(e.deltaY) * .08)); e.preventDefault(); }, { passive: false });
   $('rotL').onclick = () => { DT.audio.init(); SFX('click'); view.yawT -= Math.PI / 2; };
   $('rotR').onclick = () => { DT.audio.init(); SFX('click'); view.yawT += Math.PI / 2; };
+  const rb = $('rollBtn'); const setRb = () => rb.textContent = 'Roll: ' + (DT.dice.isAuto() ? 'Auto' : 'Flick'); setRb();
+  rb.onclick = () => { DT.audio.init(); DT.dice.setAuto(!DT.dice.isAuto()); setRb(); SFX('click'); };
   $('threatBtn').onclick = () => { if (!B || !B.active) return; B.threat = !B.threat; $('threatBtn').classList.toggle('on', B.threat); SFX('click'); if (B.sel) select(B.sel); else { clearHL(); drawThreat(); } };
   addEventListener('keydown', e => {
     if (!B || !B.active) return;

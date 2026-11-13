@@ -21,6 +21,12 @@
 | Characters looked half-done | HD-2D sprites. |
 | Wanted class perks | 3 perks per class, unlocked at levels 1 / 3 / 5. |
 
+## Dice (v3)
+- **Real 3D dice.** Every roll is a physical die you flick (or tap) to throw. A **Roll: Flick / Auto** toggle in the top bar skips the throw for speed. Enemy rolls throw themselves, faster, in red.
+- **What rolls:** movement dice each turn, every attack (d20), heals (+1d6), potions (2d4+6), firebombs (2d6, 3d6 with Volatile mix), trap dodges (d20 vs 13 − half Speed: success = half damage), chest lockpicking (d20 vs 12 − half Stealth: success = bonus gold), and many perks.
+- **Never restrictive:** a failed roll still does something (a picked lock still opens, a missed dodge is normal damage).
+- **Power dice:** any movement die you didn't hand out can be spent in the forecast to add its face to that attack's damage or that heal.
+
 ## Combat
 - Phases: player, then enemy.
 - Every attack rolls a d20 against a target number (shown as % and "need X+"). Natural 20 = crit ×1.5. Some weapons/perks crit on 18–19+.
@@ -44,6 +50,11 @@ HP, Defense, Physical, Ranged, Arcane, Ward, Faith, Speed, Stealth (unchanged). 
 | Cleric | 3 | Swift mend | Sanctuary | Smite |
 | Mage | 3 | Blink (bonus) | Arcane surge | Fireball |
 | Berserker | 4 | Rage | Cleave | Extra attack (bonus) |
+| Paladin | 3 | Lay on hands (2d8, bonus, 1/battle) | Aura of valor (+10 hit nearby) | Divine smite (+1d8 melee) |
+| Bard | 4 | Inspire (d6 dmg + move to an ally, bonus) | Song of rest (d4 party heal each turn) | Encore (Inspire uses d10) |
+| Warlock | 3 | Hex (+1d4 per hit, bonus) | Siphon (heal 30% of damage) | Dark pact (crit 17+ vs hexed) |
+| Monk | 5 | Flurry (1d6 + half Phys, bonus) | Deflect (-3 from range) | Step of the wind (+2 move, free climbing) |
+| Alchemist | 3 | Brew (d6: potion/firebomb, bonus) | Volatile mix (3d6 bombs) | Mutagen (d4 dmg, +2 move) |
 
 ## Roguelite loop
 - **Camp:** Party (roster up to 40, party 3→5 slots), Tavern (hire basic heroes), Forge (dice, weapons, potions, carve dice), Quest board, Shrine (buy party slots).

@@ -27,17 +27,21 @@ function drawFrame(g, spec, pose) {
   const skin = spec.body === 'skeleton' ? BONE : spec.skin;
   const cloth = spec.cloth, acc = spec.accent;
   const gear = spec.gear;
-  const robe = gear === 'oracle' || gear === 'mage' || gear === 'cleric' || gear === 'cultist';
+  const robe = gear === 'oracle' || gear === 'mage' || gear === 'cleric' || gear === 'cultist' || gear === 'warlock';
+  const armored = gear === 'knight' || gear === 'paladin';
+  const MET = gear === 'paladin' ? 0xe4e4ee : METAL;
+  const bareArms = gear === 'berserker' || gear === 'monk';
   const hx = L.hx + dx, hy = L.hy + dy, tx = L.tx + dx, ty = L.ty + dy;
 
   // --- behind the body: capes, quivers, cloaks
   if (gear === 'ranger') { R(tx - 2, ty + 1, 4, L.th + 4 - dy, cloth, .7); }
+  if (gear === 'paladin') { R(tx - 3, ty, 5, L.th + 6 - dy, acc, .85); }
   if (gear === 'crown' || gear === 'warden') { R(tx - 3, ty, 5, L.th + 6 - dy, gear === 'crown' ? 0x8a2020 : 0x2a2a3a, .9); }
   if (gear === 'ranger') { R(tx - 3, ty - 5, 3, 10, LEATHER); P(tx - 3, ty - 7, 0xf2e6c9); P(tx - 1, ty - 8, 0xf2e6c9); P(tx - 2, ty - 6, 0xc2412d); }
   if (gear === 'knight') { /* shield drawn on back arm below */ }
 
   // --- legs and boots
-  const bootC = gear === 'knight' ? METAL : spec.body === 'skeleton' ? BONE : LEATHER;
+  const bootC = armored ? MET : spec.body === 'skeleton' ? BONE : LEATHER;
   const legC = spec.body === 'skeleton' ? BONE : robe ? cloth : (spec.pants || 0x3a2e45);
   const legW = spec.body === 'skeleton' ? 2 : 3;
   if (!robe) {
@@ -48,9 +52,9 @@ function drawFrame(g, spec, pose) {
   R(L.tx + 5, L.bootY, 5, 40 - L.bootY, bootC);           // front boot (toe forward)
 
   // --- back arm (with knight shield)
-  const armC = gear === 'berserker' ? skin : spec.body === 'skeleton' ? BONE : cloth;
+  const armC = bareArms ? skin : spec.body === 'skeleton' ? BONE : cloth;
   R(L.aBX + dx, L.aY + dy, 2, L.aH, armC, .7); R(L.aBX + dx, L.aY + L.aH + dy, 2, 2, skin, .8);
-  if (gear === 'knight') { R(L.aBX - 4 + dx, L.aY - 1 + dy, 6, 9, METAL, .85); R(L.aBX - 3 + dx, L.aY + dy, 4, 7, acc); R(L.aBX - 2 + dx, L.aY + 2 + dy, 2, 3, GOLD); }
+  if (armored) { R(L.aBX - 4 + dx, L.aY - 1 + dy, 6, 9, MET, .85); R(L.aBX - 3 + dx, L.aY + dy, 4, 7, gear === 'paladin' ? 0xf2e6c9 : acc); R(L.aBX - 2 + dx, L.aY + 2 + dy, 2, 3, GOLD); if (gear === 'paladin') { R(L.aBX - 2 + dx, L.aY + 1 + dy, 1, 5, GOLD); } }
 
   // --- torso
   if (spec.body === 'skeleton') {
@@ -61,9 +65,12 @@ function drawFrame(g, spec, pose) {
     R(tx - 2, L.bootY - 2, L.tw + 4, 2, acc);
     if (gear === 'cleric') R(tx + 4, ty, 2, L.bootY - ty, acc);
   } else {
-    R(tx, ty, L.tw, L.th, gear === 'knight' ? METAL : cloth);
+    R(tx, ty, L.tw, L.th, armored ? MET : cloth);
     R(tx, ty + L.th - 3, L.tw, 1, LEATHER, .8); P(tx + L.tw - 3, ty + L.th - 3, GOLD);
-    if (gear === 'knight') { R(tx + 3, ty, 3, L.th, acc); R(tx + L.tw - 2, ty - 1, 4, 3, METAL, 1.1); }
+    if (armored) { R(tx + 3, ty, 3, L.th, acc); R(tx + L.tw - 2, ty - 1, 4, 3, MET, 1.1); if (gear === 'paladin') { R(tx + 4, ty + 1, 1, 4, GOLD); R(tx + 3, ty + 2, 3, 1, GOLD); } }
+    if (gear === 'bard') { for (let i = 0; i < L.th - 2; i++) P(tx + 1 + i, ty + i, acc); R(tx, ty, L.tw, 1, acc, .8); }
+    if (gear === 'monk') { R(tx + 3, ty, 3, 3, skin); P(tx + 4, ty + 3, skin); R(tx, ty + L.th - 3, L.tw, 2, acc); P(tx + 1, ty + L.th - 1, acc); }
+    if (gear === 'alchemist') { R(tx + 1, ty + 2, L.tw - 2, L.th - 2, LEATHER, .9); [0x7bc950, 0xff7a30, 0x5fd3f0].forEach((c, i) => R(tx + 1 + i * 3, ty + L.th - 3, 2, 2, c, 1.2)); }
     if (gear === 'berserker') { R(tx - 1, ty - 1, L.tw + 2, 3, 0xa87048); R(tx + 2, ty + 3, 1, 3, skin, .9); }
     if (gear === 'rogue') { R(tx, ty, L.tw, 2, acc); R(tx + 1, ty + 2, 2, L.th - 2, cloth, .8); }
   }
@@ -105,9 +112,24 @@ function drawFrame(g, spec, pose) {
   }
 
   // --- headgear
-  if (gear === 'knight') {
-    R(hx - 1, hy - 2, L.hw + 2, 5, METAL); R(hx - 1, hy + 3, 4, 8, METAL, .85); R(hx + L.hw - 4, hy + 3, 4, 1, METAL, .9);
-    R(hx + 5, hy - 6, 3, 4, acc); R(hx + 3, hy - 5, 2, 2, acc, .8);
+  if (armored) {
+    R(hx - 1, hy - 2, L.hw + 2, 5, MET); R(hx - 1, hy + 3, 4, 8, MET, .85); R(hx + L.hw - 4, hy + 3, 4, 1, MET, .9);
+    if (gear === 'knight') { R(hx + 5, hy - 6, 3, 4, acc); R(hx + 3, hy - 5, 2, 2, acc, .8); }
+    else { R(hx - 1, hy + 1, L.hw + 2, 1, GOLD); R(hx + 5, hy - 4, 4, 2, GOLD); P(hx + 6, hy - 5, 0xfff0b0); }
+  }
+  if (gear === 'bard') {
+    R(hx - 1, hy - 2, L.hw + 1, 4, cloth); R(hx + 2, hy - 4, L.hw - 5, 2, cloth); R(hx + L.hw - 3, hy, 4, 2, cloth, .85);
+    for (let i = 0; i < 7; i++) P(hx + 2 - i, hy - 3 - Math.round(i * .8), acc, 1 - i * .04); P(hx - 4, hy - 9, 0xffffff);
+  }
+  if (gear === 'warlock') {
+    R(hx - 1, hy - 2, L.hw + 2, 4, cloth); R(hx - 2, hy + 1, 5, L.hh + 3, cloth, .85);
+    R(hx + 1, hy - 5, 2, 3, BONE, .9); P(hx, hy - 6, BONE); R(hx + L.hw - 4, hy - 5, 2, 3, BONE, .9); P(hx + L.hw - 3, hy - 6, BONE);
+    P(ex, eyeY, acc, 1.3); P(ex + 3, eyeY, acc, 1.3); P(ex, eyeY + 1, acc, 1.1); P(ex + 3, eyeY + 1, acc, 1.1);
+  }
+  if (gear === 'monk') { R(hx, hy + 2, L.hw, 2, acc); R(hx - 3, hy + 3, 3, 1, acc); P(hx - 4, hy + 4, acc); }
+  if (gear === 'alchemist') {
+    R(hx, hy + 2, L.hw, 1, LEATHER); R(hx + L.hw - 8, hy + 1, 3, 3, 0x9aa0ae); R(hx + L.hw - 4, hy + 1, 3, 3, 0x9aa0ae);
+    P(hx + L.hw - 7, hy + 2, 0x7fe0d0, 1.2); P(hx + L.hw - 3, hy + 2, 0x7fe0d0, 1.2);
   }
   if (gear === 'ranger' || gear === 'rogue' || gear === 'hood') {
     const hood = gear === 'rogue' ? cloth : gear === 'hood' ? cloth : cloth;
@@ -150,6 +172,7 @@ function drawFrame(g, spec, pose) {
   }
   drawWeapon(R, P, spec.weapon, hX, hY, atk, acc);
   R(hX, hY, 2, 2, skin, .95);
+  if (spec.weapon === 'fist') { R(hX, hY, 2, 1, acc); if (atk) { P(hX + 2, hY, 0xffffff); P(hX + 3, hY - 1, 0xffffff); } }
   if (spec.body === 'ghoul') { P(hX + 2, hY + 1, BONE); P(hX + 2, hY - 1, BONE); }
 }
 
@@ -178,6 +201,16 @@ function drawWeapon(R, P, w, x, y, atk, acc) {
     R(x + 1, y - 16, 1, 22, WOOD);
     R(x, y - 19, 3, 3, acc, 1.2); P(x + 1, y - 18, 0xffffff);
     if (atk) { R(x - 1, y - 20, 5, 5, acc, 1.3); }
+  } else if (w === 'lute') {
+    const LW = 0xb07038;
+    if (atk) { R(x + 1, y - 3, 6, 5, LW); R(x + 7, y - 2, 6, 1, 0x6b4a2b); P(x + 3, y - 1, 0x2a1e18); P(x + 9, y - 6, acc, 1.2); P(x + 12, y - 8, acc, 1.2); }
+    else { R(x - 1, y - 2, 5, 6, LW); R(x + 1, y - 10, 1, 8, 0x6b4a2b); R(x, y - 12, 3, 2, 0x6b4a2b); P(x + 1, y + 1, 0x2a1e18); }
+  } else if (w === 'flask') {
+    const fx = atk ? x + 5 : x + 1, fy = atk ? y - 3 : y - 3;
+    R(fx, fy, 3, 3, 0x7bc950, 1.15); P(fx + 1, fy - 1, 0xd0d0d8); P(fx, fy, 0xd8ffb0);
+    if (atk) { P(fx + 4, fy - 1, 0x7bc950); P(fx + 5, fy + 1, 0x7bc950); }
+  } else if (w === 'fist') {
+    // handled after the hand is drawn
   } else if (w === 'claw') {
     P(x + 2, y - 1, BONE); P(x + 3, y - 1, BONE); P(x + 2, y + 1, BONE); P(x + 3, y + 2, BONE);
   }

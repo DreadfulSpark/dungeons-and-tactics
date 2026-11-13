@@ -7,7 +7,7 @@ D.GRADE = { S: 1, A: 0.85, B: 0.7, C: 0.5, D: 0.3 };
 D.STATS = [['hp','HP'],['def','Defense'],['phys','Physical'],['rng','Ranged'],['arc','Arcane'],['ward','Ward'],['faith','Faith'],['spd','Speed'],['stl','Stealth']];
 D.STATNAME = Object.fromEntries(D.STATS);
 D.TRI = { blade: 'bow', bow: 'arcane', arcane: 'blade' };
-D.TYPE_LABEL = { blade: 'Blade', bow: 'Bow', arcane: 'Arcane', faith: 'Faith', heal: 'Healing' };
+D.TYPE_LABEL = { blade: 'Blade', bow: 'Ranged', arcane: 'Arcane', faith: 'Faith', heal: 'Healing' };
 D.RIPOSTE_MAX = 5; // attacker rolls of 1..5 let the defender strike back
 
 // art: sword dagger axe bow tome staff mace claw
@@ -29,6 +29,13 @@ D.WEAPONS = {
   holymace:   { name:'Sunmace',        type:'faith',  art:'mace',   might:7,  hit:88, range:[1,1], scale:{faith:'A', phys:'C'}, price:200, tier:2 },
   mendstaff:  { name:'Mend staff',     type:'heal',   art:'staff',  might:6,  hit:100, range:[1,1], scale:{faith:'B'}, price:60, tier:1 },
   lifestaff:  { name:'Life staff',     type:'heal',   art:'staff',  might:9,  hit:100, range:[1,2], scale:{faith:'A'}, price:180, tier:2 },
+  lute:       { name:'Lute',           type:'arcane', art:'lute',   might:3,  hit:90, range:[1,2], scale:{arc:'B', faith:'C'}, price:60, tier:1 },
+  silverharp: { name:'Silver harp',    type:'arcane', art:'lute',   might:6,  hit:90, range:[1,3], scale:{arc:'A', faith:'C'}, price:190, tier:2 },
+  knuckles:   { name:'Iron knuckles',  type:'blade',  art:'fist',   might:4,  hit:95, keen:1, range:[1,1], scale:{phys:'A', spd:'C'}, price:60, tier:1 },
+  tigerclaws: { name:'Tiger claws',    type:'blade',  art:'fist',   might:6,  hit:95, keen:2, range:[1,1], scale:{phys:'A', spd:'B'}, price:210, tier:2 },
+  flasks:     { name:'Acid flasks',    type:'bow',    art:'flask',  might:4,  hit:85, range:[2,3], scale:{rng:'A', arc:'C'}, price:60, tier:1 },
+  volatileflasks:{ name:'Volatile flasks', type:'bow', art:'flask', might:7,  hit:82, range:[2,3], scale:{rng:'A', arc:'B'}, price:200, tier:2 },
+  pacttome:   { name:'Pact tome',      type:'arcane', art:'tome',   might:5,  hit:82, range:[1,3], scale:{arc:'A'}, price:70, tier:1 },
   // enemy-only
   rustyblade: { name:'Rusty blade',    type:'blade',  art:'sword',  might:3,  hit:85, range:[1,1], scale:{phys:'A'} },
   gobbow:     { name:'Goblin bow',     type:'bow',    art:'bow',    might:3,  hit:80, range:[2,3], scale:{rng:'A'} },
@@ -64,6 +71,21 @@ D.PERKS = {
   rage:       { name:'Rage',           desc:'+30% damage while below half HP.' },
   cleave:     { name:'Cleave',         desc:'Melee hits also strike one other adjacent enemy for half damage.' },
   extraAttack:{ name:'Extra attack',   desc:'Bonus action: attack again.', bonus:true },
+  layOnHands: { name:'Lay on hands',   desc:'Bonus action, once per battle: heal yourself or an adjacent ally for 2d8 + half Faith.', bonus:true },
+  aura:       { name:'Aura of valor',  desc:'You and allies next to you get +10 hit.' },
+  divineSmite:{ name:'Divine smite',   desc:'Melee hits deal an extra 1d8 holy damage.' },
+  inspire:    { name:'Inspire',        desc:'Bonus action: roll a d6 for an ally within 3. They get +that much damage on their next attack, and +that much move if they have not moved.', bonus:true },
+  songOfRest: { name:'Song of rest',   desc:'At the start of your phase, roll a d4: every hero heals that much.' },
+  encore:     { name:'Encore',         desc:'Inspire rolls a d10 instead of a d6.' },
+  hex:        { name:'Hex',            desc:'Bonus action: curse an enemy within 4. Every hit on it deals an extra 1d4.', bonus:true },
+  siphon:     { name:'Siphon',         desc:'Heal 30% of the damage you deal.' },
+  darkPact:   { name:'Dark pact',      desc:'Crit on 17+ against hexed enemies.' },
+  flurry:     { name:'Flurry',         desc:'Bonus action: punch an adjacent enemy for 1d6 + half Physical. Ignores Defense.', bonus:true },
+  deflect:    { name:'Deflect',        desc:'Take 3 less damage from attacks 2+ tiles away.' },
+  stepOfWind: { name:'Step of the wind', desc:'+2 move, and climbing or rubble costs no extra move.' },
+  brew:       { name:'Brew',           desc:'Bonus action, once per battle: roll a d6. 1-3 brews a potion, 4-5 a firebomb, 6 both.', bonus:true },
+  volatile:   { name:'Volatile mix',   desc:'Firebombs roll 3d6 instead of 2d6 and reach 4 tiles.' },
+  mutagen:    { name:'Mutagen',        desc:'Bonus action, once per battle: roll a d4. +that much damage this turn and +2 move if you have not moved.', bonus:true },
 };
 
 // look: gear = knight|ranger|rogue|oracle|cleric|mage|berserker
@@ -89,6 +111,21 @@ D.CLASSES = {
   berserker:{ name:'Berserker', role:'Bruiser',  move:4, spec:['blade'],          start:['handaxe'],                perks:[['rage',1],['cleave',3],['extraAttack',5]],
               base:{hp:26,def:4,phys:9,rng:1,arc:0,ward:1,faith:1,spd:5,stl:2}, growth:{hp:.8,def:.3,phys:.65,rng:.05,arc:.0,ward:.15,faith:.05,spd:.4,stl:.1},
               cloth:[0x6b4a2b,0x5a3a2a,0x4a4a3a], accent:[0xc2412d,0xa87048,0x8a8090] },
+  paladin:  { name:'Paladin',   role:'Holy tank', move:3, spec:['blade','faith'], start:['ironsword'],            perks:[['layOnHands',1],['aura',3],['divineSmite',5]],
+              base:{hp:26,def:6,phys:6,rng:1,arc:1,ward:4,faith:5,spd:3,stl:1}, growth:{hp:.8,def:.45,phys:.4,rng:.05,arc:.05,ward:.35,faith:.4,spd:.2,stl:.05},
+              cloth:[0xd8d8e0,0xc8ccd8,0xe0d8c8], accent:[0xe8a33d,0x3a5fcd,0xc2412d] },
+  bard:     { name:'Bard',      role:'Support',   move:4, spec:['arcane'],         start:['lute'],                 perks:[['inspire',1],['songOfRest',3],['encore',5]],
+              base:{hp:18,def:2,phys:3,rng:3,arc:6,ward:4,faith:4,spd:6,stl:4}, growth:{hp:.55,def:.2,phys:.2,rng:.2,arc:.5,ward:.35,faith:.35,spd:.45,stl:.3},
+              cloth:[0x8a2a4a,0x2a6a5a,0x6a4a8a], accent:[0xe8a33d,0xf2e6c9,0x5fd3f0] },
+  warlock:  { name:'Warlock',   role:'Curser',    move:3, spec:['arcane'],         start:['pacttome'],             perks:[['hex',1],['siphon',3],['darkPact',5]],
+              base:{hp:20,def:3,phys:2,rng:2,arc:8,ward:5,faith:2,spd:5,stl:4}, growth:{hp:.55,def:.2,phys:.05,rng:.1,arc:.65,ward:.4,faith:.1,spd:.35,stl:.3},
+              cloth:[0x2a1a3a,0x1a2a2a,0x3a1a1a], accent:[0xb07fe0,0x7fe0d0,0xc2412d] },
+  monk:     { name:'Monk',      role:'Skirmisher',move:5, spec:['blade'],          start:['knuckles'],             perks:[['flurry',1],['deflect',3],['stepOfWind',5]],
+              base:{hp:20,def:3,phys:6,rng:2,arc:1,ward:4,faith:3,spd:9,stl:5}, growth:{hp:.6,def:.25,phys:.45,rng:.1,arc:.05,ward:.35,faith:.2,spd:.6,stl:.35},
+              cloth:[0xc87a2a,0x8a2a2a,0x4a5a8a], accent:[0xf2e6c9,0xe8a33d,0x2a1e18] },
+  alchemist:{ name:'Alchemist', role:'Bomber',    move:3, spec:['bow'],            start:['flasks'],               perks:[['brew',1],['volatile',3],['mutagen',5]],
+              base:{hp:18,def:2,phys:2,rng:6,arc:4,ward:4,faith:2,spd:5,stl:3}, growth:{hp:.55,def:.2,phys:.1,rng:.55,arc:.35,ward:.35,faith:.1,spd:.4,stl:.25},
+              cloth:[0x5a4a3a,0x3a4a3a,0x4a3a4a], accent:[0x7bc950,0xe8a33d,0x5fd3f0] },
 };
 
 D.SKIN = [0xf2d0a8, 0xe8b88a, 0xc89060, 0x9a6a44, 0x6e4a30, 0xf6dcc0];
@@ -116,6 +153,8 @@ D.SPECIALS = [
   { id:'dain',   name:'Dain Ironjaw',    cls:'knight',    bonus:{def:3,hp:4},              weapon:'steelsword', look:{ skin:0xc89060, hair:0x2a1e18, style:'bald',  cloth:0x6b6f7a, accent:0xc2412d } },
   { id:'saffi',  name:'Saffi Emberhand', cls:'mage',      bonus:{arc:2,spd:2},             weapon:'voidtome',   look:{ skin:0xf2d0a8, hair:0xff7a30, style:'spiky', cloth:0x6a2a3a, accent:0xe8a33d } },
   { id:'hale',   name:'Brother Hale',    cls:'cleric',    bonus:{faith:2,def:2},           weapon:'holymace',   look:{ skin:0x9a6a44, hair:0x2a1e18, style:'bald',  cloth:0xd8d0bc, accent:0xc2412d } },
+  { id:'lyra',   name:'Lyra Songweaver', cls:'bard',      bonus:{arc:2,spd:1,faith:1},     weapon:'silverharp', look:{ skin:0xe8b88a, hair:0xd8b060, style:'long',  cloth:0x2a6a5a, accent:0xe8a33d } },
+  { id:'morrow', name:'Morrow',          cls:'warlock',   bonus:{arc:3,ward:1},            weapon:'pacttome',   look:{ skin:0xc8c0b8, hair:0x3a3a48, style:'spiky', cloth:0x1a1a2a, accent:0xb07fe0 } },
   { id:'rook',   name:'Rook',            cls:'berserker', bonus:{phys:2,spd:2},            weapon:'greataxe',   look:{ skin:0xf6dcc0, hair:0x3a3a48, style:'long',  cloth:0x4a4a3a, accent:0x5b8c85 } },
 ];
 
@@ -132,6 +171,8 @@ D.QUESTS = [
   { id:'q9',  title:'Ironjaw',             special:'dain',   need:{q:5, d:4}, gold:140, desc:'A dwarf-blooded guard holds a door alone.' },
   { id:'q10', title:'Ember Sister',        special:'saffi',  need:{q:6, d:4}, gold:150, desc:'Vex says his sister is still down there.' },
   { id:'q11', title:'The Penitent',        special:'hale',   need:{q:7, d:4}, gold:150, desc:'A monk walked into the dark to atone.' },
+  { id:'q13', title:'The Silent Song',     special:'lyra',   need:{q:2, d:1}, gold:110, desc:'A bard was taken mid-verse. The tune still echoes below.' },
+  { id:'q14', title:'Pact Breaker',        special:'morrow', need:{q:5, d:3}, gold:140, desc:'A warlock wants out of a bad bargain. So does his patron.' },
   { id:'q12', title:'Rook\'s Gambit',      special:'rook',   need:{q:8, d:5}, gold:170, desc:'A sellsword bet he could clear the crypt alone. He lost.' },
 ];
 
@@ -156,12 +197,12 @@ D.ENCOUNTERS = [
 ];
 
 D.DICE = {
-  d4:     { name:'Iron d4',   faces:[1,2,3,4],          price:20 },
-  d6:     { name:'Bone d6',   faces:[1,2,3,4,5,6],      price:40 },
-  d8:     { name:'Scout d8',  faces:[1,2,3,4,5,6,7,8],  price:90 },
-  lucky:  { name:'Lucky d6',  faces:[3,3,4,4,5,6],      price:110 },
-  gilded: { name:'Gilded d6', faces:[2,3,4,5,6,'★'],    price:180 },
-  wild:   { name:'Wild d10',  faces:[1,2,3,4,5,6,7,8,9,10], price:200 },
+  d4:     { color:0x8a8f9c, name:'Iron d4',   faces:[1,2,3,4],          price:20 },
+  d6:     { color:0xe8dcc0, name:'Bone d6',   faces:[1,2,3,4,5,6],      price:40 },
+  d8:     { color:0x6aa070, name:'Scout d8',  faces:[1,2,3,4,5,6,7,8],  price:90 },
+  lucky:  { color:0x5fd3f0, name:'Lucky d6',  faces:[3,3,4,4,5,6],      price:110 },
+  gilded: { color:0xe8a33d, name:'Gilded d6', faces:[2,3,4,5,6,'★'],    price:180 },
+  wild:   { color:0x8a5ac8, name:'Wild d10',  faces:[1,2,3,4,5,6,7,8,9,10], price:200 },
 };
 D.ITEMS = {
   potion:   { name:'Healing potion', desc:'Bonus action: heal 12 HP.', price:30 },
