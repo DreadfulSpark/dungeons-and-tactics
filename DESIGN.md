@@ -24,7 +24,7 @@
 ## Dice (v3)
 - **Real 3D dice.** Every roll is a physical die you flick (or tap) to throw. A **Roll: Flick / Auto** toggle in the top bar skips the throw for speed. Enemy rolls throw themselves, faster, in red.
 - **What rolls:** movement dice each turn, every attack (d20), heals (+1d6), potions (2d4+6), firebombs (2d6, 3d6 with Volatile mix), trap dodges (d20 vs 13 − half Speed: success = half damage), chest lockpicking (d20 vs 12 − half Stealth: success = bonus gold), and many perks.
-- **Never restrictive:** a failed roll still does something (a picked lock still opens, a missed dodge is normal damage).
+- **Never restrictive:** a failed roll still does something (a failed lockpick still opens the chest, a failed dodge just takes normal damage).
 - **Power dice:** any movement die you didn't hand out can be spent in the forecast to add its face to that attack's damage or that heal.
 
 ## Combat
