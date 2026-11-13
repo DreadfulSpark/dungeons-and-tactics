@@ -265,7 +265,7 @@ S.heroSpec = function (h) {
 S.enemySpec = function (key) {
   const e = DT.data.ENEMIES[key];
   const skin = e.look.skin || (e.body === 'goblin' ? 0x6fa39a : e.body === 'ghoul' ? 0x8a9a88 : 0xc8b8a8);
-  const eyes = e.body === 'goblin' ? 0xffb030 : e.body === 'ghoul' ? 0xd0ff60 : e.look.gear === 'warden' ? 0x7fe0d0 : undefined;
+  const eyes = e.look.eyes || (e.body === 'goblin' ? 0xffb030 : e.body === 'ghoul' ? 0xd0ff60 : e.look.gear === 'warden' ? 0x7fe0d0 : undefined);
   return { body: e.body, gear: e.look.gear, skin, hair: 0, style: 'bald', cloth: e.look.cloth, accent: e.look.accent, weapon: e.look.weapon, eyes, noblush: true };
 };
 })();

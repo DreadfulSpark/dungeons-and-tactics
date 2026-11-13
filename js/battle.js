@@ -237,7 +237,7 @@ const rel = k => !!(B && B.relics && B.relics.has(k));
 const oath = k => !!(B && B.oath === k);
 function ripMax(att) { return att.team === 'hero' && rel('hunger') ? 7 : D.RIPOSTE_MAX; }
 function emove(e) { return Math.max(1, e.move + (e.chilled ? -2 : 0) + (e.team === 'enemy' && oath('peril') ? 1 : 0)); }
-function tintUnit(u) { if (u.team === 'enemy' && u.mat) u.mat.color.setHex(u.chilled ? 0xb8dcff : u.hexed ? 0xd8b8ff : 0xffffff); }
+function tintUnit(u) { if (u.team === 'enemy' && u.mat) u.mat.color.setHex(u.chilled ? 0xb8dcff : u.hexed ? 0xd8b8ff : u.enraged ? 0xffb0a0 : 0xffffff); }
 function goldMult() { return (rel('goldtooth') ? 1.5 : 1) * (rel('greed') ? 2 : 1) * (oath('greed') ? 1.5 : 1); }
 const adjEnemy = u => alive('enemy').some(e => dist(e.x, e.z, u.x, u.z) === 1);
 function adjacentCrystal(u) { for (const [dx, dz] of N4) { const t = tileAt(u.x + dx, u.z + dz); if (t && t.prop === 'crystal' && t.type === 'pillar') return t; } return null; }
@@ -259,6 +259,7 @@ function addUnit(o) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(.3 * (u.scale || 1), .4 * (u.scale || 1), 20), new THREE.MeshBasicMaterial({ color: u.team === 'hero' ? 0x5fd3f0 : 0xc2412d, transparent: true, opacity: .6, depthWrite: false, side: THREE.DoubleSide }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = .03; u.g.add(ring); u.ring = ring;
   u.mesh.userData.unit = u;
+  if (u.ghost) { u.mat.transparent = true; u.mat.opacity = .68; }
   scene.add(u.g);
   place(u, u.x, u.z);
   const bar = document.createElement('div'); bar.className = 'hpbar' + (u.team === 'enemy' ? ' enemy' : '') + (u.boss ? ' boss' : '');
@@ -473,7 +474,8 @@ function showPanel(u) {
   const weaps = u.weapons.map(k => { const W2 = D.WEAPONS[k]; const sp = u.spec.includes(W2.type);
     const sc = Object.entries(W2.scale).map(([st, g]) => D.STATNAME[st] + ' ' + g).join(', ');
     return `<div class="weap">${W2.name}${sp ? ' <b class="star">★</b>' : ''}<br><span class="mute">${D.TYPE_LABEL[W2.type]} · Mt ${W2.might} · Rng ${W2.range[0]}-${W2.range[1]}${W2.keen ? ' · Keen' : ''}<br>${sc}</span></div>`; }).join('');
-  const perks = [...(u.perks || [])].map(p => `<div class="perk"><b>${D.PERKS[p].name}</b><br><span class="mute">${D.PERKS[p].desc}</span></div>`).join('');
+  const perks = [...(u.perks || [])].map(p => `<div class="perk"><b>${D.PERKS[p].name}</b><br><span class="mute">${u.team === 'enemy' ? D.PERKS[p].desc.replace(/hero/g, 'unit') : D.PERKS[p].desc}</span></div>`).join('')
+    + (u.team === 'enemy' ? Object.keys(D.ETRAITS).filter(k => u[k]).map(k => `<div class="perk"><span class="mute">${D.ETRAITS[k](u[k])}${u.enraged && k === 'boss' ? ' <b style="color:#ff6050">Enraged!</b>' : ''}</span></div>`).join('') : '');
   const sub = u.team === 'enemy' ? `${u.boss ? 'Boss · ' : ''}Move ${u.move}` : `${D.CLASSES[u.cls].name} · Lv ${u.level}${u.done ? ' · Done' : ''}`;
   const tl = tileAt(u.x, u.z);
   ui.unitPanel.innerHTML = `<div class="ph"><div><h3 class="${u.team}">${u.name}</h3><div class="mute">${sub}</div></div></div>${hidden(u, -99, -99) ? '<div class="teal">Hidden from range</div>' : ''}${!tl.lit ? '<div class="mute">In darkness</div>' : ''}<div class="stats">${statRows(u)}</div>${weaps}${perks}`;
@@ -795,6 +797,7 @@ async function damage(u, amt, from, color = '#f2e6c9', prefix = '', big = false)
   u.hp = Math.max(0, u.hp - amt); flash(u); updateBar(u);
   const [wx, wz] = WP(u.x, u.z); sparks(wx, tileAt(u.x, u.z).h + .6, wz, 0xffc070, big ? 18 : 10, big ? 1.3 : 1);
   popup(u, prefix + amt, color, big);
+  if (u.boss && !u.enraged && u.hp > 0 && u.hp <= u.maxhp / 2) await enrage(u);
   if (B.sel === u) showPanel(u);
   if (u.hp <= 0 && u.team === 'hero' && rel('phoenix') && !B.phoenixUsed) { B.phoenixUsed = true; u.hp = Math.ceil(u.maxhp * .4); updateBar(u); await wait(200); popup(u, 'Phoenix! +' + u.hp, '#ff9a50', true); SFX('heal'); const [px2, pz2] = WP(u.x, u.z); sparks(px2, .8, pz2, 0xff9a50, 24, 1); return; }
   if (u.hp <= 0 && u.team === 'hero' && !u.lastStood) { u.lastStood = true; u.hp = 1; updateBar(u); await wait(200); popup(u, 'Last stand!', '#ffd27a', true); SFX('levelup'); return; }
@@ -983,7 +986,7 @@ async function kill(u, by) {
   const [wx, wz] = WP(u.x, u.z); sparks(wx, tileAt(u.x, u.z).h + .5, wz, u.team === 'hero' ? 0x5fd3f0 : 0x8a8090, 16);
   await tween(380, p => { u.mesh.rotation.z = p * Math.PI / 2 * (u.faceX || 1); u.mat.opacity = 1 - p; u.mat.transparent = true; u.g.position.y = tileAt(u.x, u.z).h - p * .15; });
   scene.remove(u.g); u.bar.remove();
-  if (u.team === 'enemy') { const g = Math.round((5 + Math.floor(Math.random() * 6)) * (u.boss ? 4 : 1) * (1 + .15 * (B.depth - 1)) * goldMult()); B.gold += g; popup(u, '+' + g + 'g', '#e8a33d'); SFX('coin'); }
+  if (u.team === 'enemy' && !u.summoned) { const g = Math.round((5 + Math.floor(Math.random() * 6)) * (u.boss ? 4 : 1) * (1 + .15 * (B.depth - 1)) * goldMult()); B.gold += g; popup(u, '+' + g + 'g', '#e8a33d'); SFX('coin'); }
   else popup(u, u.name + ' down', '#e07060');
   alive('enemy').forEach(updateBar);
   if (u.volatile) await explode(u);
@@ -1158,6 +1161,7 @@ function distanceField() {
   return f;
 }
 async function aiAct(e) {
+  await enemyUpkeep(e); if (e.dead || B.over) return;
   if (e.staggered) { popup(e, 'Staggered', '#5fd3f0'); await wait(250); }
   const plan = e.staggered ? null : aiPlan(e);
   B.sel = e; showPanel(e); setHL(e.x, e.z, COL.danger, .5);
@@ -1177,6 +1181,53 @@ async function aiAct(e) {
   } else if (alive('hero').some(h => dist(h.x, h.z, e.x, e.z) <= 7)) e.awake = true;
   e.staggered = false; if (e.chilled) { e.chilled = false; tintUnit(e); }
   clearHL(); showPanel(null); B.sel = null;
+}
+
+// ---- v5 enemy abilities
+function spawnEnemy(key, m, x, z, extra = {}) {
+  const E = D.ENEMIES[key];
+  const stats = {}; for (const k in E.stats) stats[k] = k === 'spd' || k === 'stl' ? E.stats[k] : Math.round(E.stats[k] * m);
+  stats.hp = Math.round(stats.hp * (B.hpMult || 1));
+  return addUnit(Object.assign({ team: 'enemy', key, name: E.name, stats, hp: stats.hp, maxhp: stats.hp, spec: [], weapons: [...E.weapons], move: E.move, ai: E.ai, boss: E.boss, volatile: E.volatile, ghost: E.ghost, regen: E.regen, summon: E.summon, mult: m, summons: 0, scale: E.scale || 1, perks: new Set(E.perks || []), x, z, fdx: 0, fdz: 1, sprite: DT.sprites.enemySpec(key) }, extra));
+}
+function freeAround(x, z) {
+  const out = [];
+  for (let r = 1; r <= 2 && !out.length; r++) for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+    if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
+    const t = tileAt(x + dx, z + dz);
+    if (t && !BLOCK.has(t.type) && t.type !== 'trap' && t.type !== 'pit' && t.type !== 'chest' && t.type !== 'cage' && !t.fallen && !unitAt(t.x, t.z)) out.push(t);
+  }
+  return out.sort(() => Math.random() - .5);
+}
+async function enemyUpkeep(e) {
+  if (e.regen && e.hp < e.maxhp) {
+    const a = Math.min(e.regen, e.maxhp - e.hp); e.hp += a; updateBar(e); popup(e, 'Regen +' + a, '#9cf08a');
+    const [wx, wz] = WP(e.x, e.z); sparks(wx, tileAt(e.x, e.z).h + .4, wz, 0x9cf08a, 8, .5); await wait(250);
+  }
+  const S = e.summon;
+  if (S && !e.staggered && B.turn % S.every === 0 && e.summons < S.max && alive('enemy').length < 9) {
+    const spots = freeAround(e.x, e.z).slice(0, Math.min(S.n, S.max - e.summons));
+    if (!spots.length) return;
+    B.sel = e; showPanel(e); face(e, spots[0].x, spots[0].z); e.atk = true; setFrame(e, 2);
+    popup(e, 'Summons!', '#c09cf0', true); SFX('cast'); await wait(350);
+    for (const t of spots) {
+      const key = S.alt && Math.random() < .35 ? S.alt : S.key;
+      const s = spawnEnemy(key, (e.mult || 1) * (e.boss ? .9 : .85), t.x, t.z, { summoned: true, awake: true });
+      e.summons++;
+      const [wx, wz] = WP(t.x, t.z); sparks(wx, tileAt(t.x, t.z).h + .3, wz, 0xc09cf0, 18, 1);
+      s.g.scale.setScalar(.01); tween(350, p => s.g.scale.setScalar(Math.max(.01, easeOut(p))));
+      await wait(200);
+    }
+    e.atk = false; setFrame(e, 0); await wait(300);
+  }
+}
+async function enrage(u) {
+  u.enraged = true; u.move += 1;
+  ['phys', 'arc', 'rng', 'faith'].forEach(k => u.stats[k] = Math.round(u.stats[k] * 1.25));
+  tintUnit(u); SFX('ephase'); shake(.35);
+  const [wx, wz] = WP(u.x, u.z); sparks(wx, tileAt(u.x, u.z).h + .8, wz, 0xff5040, 28, 1.3);
+  banner(u.name + ' is enraged!', 'enemy'); popup(u, 'ENRAGED', '#ff6050', true);
+  await wait(500);
 }
 
 // ================= PHASES =================
@@ -1362,12 +1413,9 @@ BT.start = function (opts) {
     addUnit({ team: 'hero', rec, name: rec.name, cls: rec.cls, level: rec.level, stats: { ...rec.stats }, hp: Math.max(1, rel('bloodpact') ? Math.round(rec.hp - rec.stats.hp * .15) : rec.hp), maxhp: rec.stats.hp, spec: C.spec, weapons: [...rec.weapons], move: C.move, perks: perksFor(rec.cls, rec.level), x: at[0], z: at[1], fdx: 0, fdz: -1, sprite: DT.sprites.heroSpec(rec) });
   });
   // enemies
-  room.enemies.forEach(en => {
-    const E = D.ENEMIES[en.key]; const m = en.mult;
-    const stats = {}; for (const k in E.stats) stats[k] = k === 'spd' || k === 'stl' ? E.stats[k] : Math.round(E.stats[k] * m);
-    stats.hp = Math.round(stats.hp * hpMult);
-    addUnit({ team: 'enemy', key: en.key, name: E.name, stats, hp: stats.hp, maxhp: stats.hp, spec: [], weapons: [...E.weapons], move: E.move, ai: E.ai, boss: E.boss, volatile: E.volatile, scale: E.scale || 1, perks: new Set(), x: en.at[0], z: en.at[1], fdx: 0, fdz: 1, sprite: DT.sprites.enemySpec(en.key) });
-  });
+  B.hpMult = hpMult;
+  room.enemies.forEach(en => spawnEnemy(en.key, en.mult, en.at[0], en.at[1]));
+  const boss = B.units.find(u => u.boss); if (boss) setTimeout(() => { if (B && !B.over && !boss.dead) popup(boss, boss.name, '#ff6050', true); }, 900);
   // rescue prisoner
   if (room.cage && opts.prisoner) {
     const t = tileAt(room.cage[0], room.cage[1]); B.cageTile = t;

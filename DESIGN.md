@@ -103,3 +103,10 @@ Dev URL: `?layout=moat&structs=crystal,barrels` forces a layout and pair.
 
 ## Ideas parking lot
 Controller support (Thor), carving custom die faces, more biomes, class promotions, permadeath mode, more bosses, character barks.
+
+## v5: enemies and bosses
+- 10 new enemies: Goblin spearman (reach 2), Goblin shaman (heals, +10 hit aura), Goblin bomber (explodes), Skeleton shieldbearer (allies next to it take 2 less), Dread knight (rage below half HP), Wraith (see-through, drains, resists ranged), Necromancer (raises skeletons), Cave troll (regenerates 4/turn), Cult assassin (backstab), Ghast (drains).
+- 4 new bosses: Troll Chieftain (regen 6, knockback), The Pale Lich (raises skeletons and wraiths), High Priestess (heals, summons cultists, aura), Bloat Mother (spawns bloaters, explodes).
+- Every boss enrages once at half HP: +1 move, +25% attack stats, red tint.
+- Boss pools: floor 1 King or Bloat Mother, floor 2 Warden or Priestess, floor 3+ any of the six. Summons give no gold; at most 8 enemies alive at once.
+- A 5th encounter band covers floor 5+. Dev: `?boss=lich` forces a boss.

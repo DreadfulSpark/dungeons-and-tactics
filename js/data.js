@@ -78,6 +78,21 @@ D.WEAPONS = {
   darkrite:   { name:'Dark rite',      type:'faith',  art:'tome',   might:4,  hit:85, range:[1,2], scale:{faith:'A'} },
   bile:       { name:'Bile claws',     type:'blade',  art:'claw',   might:4,  hit:85, range:[1,1], scale:{phys:'A'} },
   claws:      { name:'Claws',          type:'blade',  art:'claw',   might:5,  hit:90, keen:1, range:[1,1], scale:{phys:'A'} },
+  // ---- v5 enemy weapons
+  gobspear:   { name:'Goblin spear',   type:'blade',  art:'staff',  might:4,  hit:85, range:[1,2], scale:{phys:'A'} },
+  bombflask:  { name:'Bomb flasks',    type:'bow',    art:'flask',  might:4,  hit:80, range:[2,3], scale:{rng:'A'} },
+  shieldblade:{ name:'Shield & blade', type:'blade',  art:'sword',  might:5,  hit:85, range:[1,1], scale:{phys:'A'} },
+  dreadblade: { name:'Dread blade',    type:'blade',  art:'sword',  might:9,  hit:80, range:[1,1], scale:{phys:'A'} },
+  wraithtouch:{ name:'Wraith touch',   type:'arcane', art:'claw',   might:5,  hit:88, range:[1,2], scale:{arc:'A'}, fx:'drain' },
+  necrorod:   { name:'Necro rod',      type:'arcane', art:'staff',  might:5,  hit:85, range:[2,3], scale:{arc:'A'} },
+  trollclub:  { name:'Troll club',     type:'blade',  art:'mace',   might:8,  hit:75, range:[1,1], scale:{phys:'A'} },
+  shiv:       { name:'Poisoned shiv',  type:'blade',  art:'dagger', might:5,  hit:95, keen:3, range:[1,1], scale:{phys:'B', stl:'A'} },
+  ghastclaw:  { name:'Ghast claws',    type:'blade',  art:'claw',   might:5,  hit:88, range:[1,1], scale:{phys:'A'}, fx:'drain' },
+  chiefclub:  { name:'Chieftain club', type:'blade',  art:'mace',   might:11, hit:78, range:[1,1], scale:{phys:'A'}, fx:'knock' },
+  lichstaff:  { name:'Lich staff',     type:'arcane', art:'staff',  might:8,  hit:85, range:[2,4], scale:{arc:'A'} },
+  lichgrasp:  { name:'Grave grasp',    type:'arcane', art:'claw',   might:7,  hit:90, range:[1,1], scale:{arc:'A'}, fx:'drain' },
+  hightome:   { name:'Black liturgy',  type:'faith',  art:'tome',   might:7,  hit:85, range:[1,3], scale:{faith:'A'} },
+  motherbile: { name:'Mother bile',    type:'blade',  art:'claw',   might:8,  hit:85, range:[1,1], scale:{phys:'A'}, fx:'knock' },
   kingsmaul:  { name:"King's maul",    type:'blade',  art:'mace',   might:9,  hit:78, range:[1,1], scale:{phys:'A'} },
   wardenblade:{ name:"Warden's blade", type:'blade',  art:'sword',  might:8,  hit:85, range:[1,1], scale:{phys:'A'} },
   gravecall:  { name:'Grave call',     type:'arcane', art:'staff',  might:6,  hit:85, range:[2,3], scale:{arc:'A'} },
@@ -219,16 +234,40 @@ D.ENEMIES = {
   cultist:  { name:'Cultist',        body:'human',    stats:{hp:14,def:2,phys:2,rng:1,arc:2,ward:5,faith:6,spd:5,stl:3}, weapons:['darkrite','mendstaff'], move:4, ai:'support', look:{cloth:0x6a1a20, accent:0x1a1423, gear:'cultist', weapon:'tome', skin:0xc8b8a8} },
   ghoul:    { name:'Ghoul',          body:'ghoul',    stats:{hp:18,def:2,phys:7,rng:0,arc:0,ward:2,faith:0,spd:8,stl:4}, weapons:['claws'], move:5, ai:'charge', look:{cloth:0x3a4a3a, accent:0x2a2a2a, gear:'none', weapon:'claw'} },
   bloater:  { name:'Bloater',        body:'ghoul',    stats:{hp:15,def:1,phys:5,rng:0,arc:0,ward:1,faith:0,spd:3,stl:0}, weapons:['bile'], move:3, ai:'charge', volatile:true, scale:1.15, look:{cloth:0x5a7a2a, accent:0x9ad040, gear:'none', weapon:'claw', skin:0x9aba68} },
+  // ---- v5 enemies. perks reuse hero perks (aura/guard/deflect/rage/backstab). regen: heal per turn. summon: raise allies. ghost: see-through
+  spearman: { name:'Goblin spearman',body:'goblin',   stats:{hp:15,def:3,phys:5,rng:1,arc:0,ward:1,faith:0,spd:5,stl:2}, weapons:['gobspear'], move:4, ai:'charge', look:{cloth:0x6b5a2b, accent:0xa87048, gear:'none', weapon:'staff'} },
+  shaman:   { name:'Goblin shaman',  body:'goblin',   stats:{hp:13,def:1,phys:1,rng:1,arc:4,ward:4,faith:5,spd:5,stl:2}, weapons:['hexfetish','mendstaff'], perks:['aura'], move:4, ai:'support', look:{cloth:0x3a6a5a, accent:0xe8a33d, gear:'hood', weapon:'staff'} },
+  bomber:   { name:'Goblin bomber',  body:'goblin',   stats:{hp:10,def:1,phys:2,rng:5,arc:0,ward:1,faith:0,spd:6,stl:3}, weapons:['bombflask'], move:4, ai:'charge', volatile:true, scale:.9, look:{cloth:0x8a4a20, accent:0xff7a30, gear:'none', weapon:'flask'} },
+  shieldbearer:{name:'Skeleton shieldbearer',body:'skeleton', stats:{hp:20,def:7,phys:5,rng:0,arc:0,ward:2,faith:0,spd:3,stl:0}, weapons:['shieldblade'], perks:['guard'], move:3, ai:'charge', look:{cloth:0x3a3a4a, accent:0x6b6f7a, gear:'knight', weapon:'sword'} },
+  boneknight:{name:'Dread knight',   body:'skeleton', stats:{hp:26,def:6,phys:8,rng:0,arc:0,ward:3,faith:0,spd:4,stl:1}, weapons:['dreadblade'], perks:['rage'], move:3, ai:'charge', scale:1.15, look:{cloth:0x2a1a2a, accent:0xc2412d, gear:'knight', weapon:'sword'} },
+  wraith:   { name:'Wraith',         body:'skeleton', stats:{hp:16,def:1,phys:0,rng:0,arc:7,ward:6,faith:0,spd:7,stl:7}, weapons:['wraithtouch'], perks:['deflect'], move:5, ai:'charge', ghost:true, look:{cloth:0x2a3a5a, accent:0x9fe8ff, gear:'hood', weapon:'claw', eyes:0x9fe8ff} },
+  necromancer:{name:'Necromancer',   body:'human',    stats:{hp:16,def:2,phys:1,rng:1,arc:6,ward:5,faith:2,spd:5,stl:3}, weapons:['necrorod'], summon:{key:'skeleton', every:2, n:1, max:2}, move:3, ai:'charge', look:{cloth:0x2a2a3a, accent:0x7fe060, gear:'cultist', weapon:'staff', skin:0xb8c0b0} },
+  troll:    { name:'Cave troll',     body:'ghoul',    stats:{hp:34,def:4,phys:9,rng:0,arc:0,ward:1,faith:0,spd:2,stl:0}, weapons:['trollclub'], regen:4, move:3, ai:'charge', scale:1.45, look:{cloth:0x4a3a2a, accent:0x6a5a3a, gear:'none', weapon:'mace', skin:0x7a8a6a} },
+  assassin: { name:'Cult assassin',  body:'human',    stats:{hp:14,def:2,phys:5,rng:1,arc:0,ward:2,faith:0,spd:8,stl:7}, weapons:['shiv'], perks:['backstab'], move:5, ai:'charge', look:{cloth:0x1a1a22, accent:0x8a2020, gear:'rogue', weapon:'dagger', skin:0xc8a888} },
+  ghast:    { name:'Ghast',          body:'ghoul',    stats:{hp:20,def:2,phys:7,rng:0,arc:0,ward:3,faith:0,spd:7,stl:4}, weapons:['ghastclaw'], move:5, ai:'charge', look:{cloth:0x2a2a3a, accent:0x5a3a6a, gear:'none', weapon:'claw', skin:0x9a90a8} },
+  // ---- v5 bosses. every boss enrages once at half HP (+1 move, +25% attack stats)
+  trollking:{ name:'Troll Chieftain',body:'ghoul',    stats:{hp:62,def:6,phys:11,rng:0,arc:0,ward:2,faith:0,spd:3,stl:0}, weapons:['chiefclub'], regen:6, move:3, ai:'charge', boss:true, scale:1.85, look:{cloth:0x5a3a1a, accent:0xe8a33d, gear:'crown', weapon:'mace', skin:0x6a7a5a} },
+  lich:     { name:'The Pale Lich',  body:'skeleton', stats:{hp:50,def:4,phys:2,rng:1,arc:10,ward:8,faith:0,spd:5,stl:2}, weapons:['lichstaff','lichgrasp'], summon:{key:'skeleton', alt:'wraith', every:2, n:2, max:3}, move:3, ai:'charge', boss:true, scale:1.6, look:{cloth:0x2a1a3a, accent:0xb07fe0, gear:'warden', weapon:'staff', eyes:0xc080ff} },
+  priestess:{ name:'High Priestess', body:'human',    stats:{hp:46,def:4,phys:2,rng:1,arc:3,ward:7,faith:10,spd:6,stl:2}, weapons:['hightome','mendstaff'], perks:['aura'], summon:{key:'cultist', every:3, n:2, max:3}, move:3, ai:'support', boss:true, scale:1.5, look:{cloth:0x8a1a28, accent:0xe8a33d, gear:'cultist', weapon:'tome', skin:0xe0c8b0} },
+  bloatmother:{name:'Bloat Mother',  body:'ghoul',    stats:{hp:56,def:3,phys:9,rng:0,arc:0,ward:2,faith:0,spd:2,stl:0}, weapons:['motherbile'], summon:{key:'bloater', every:2, n:1, max:3}, volatile:true, move:2, ai:'charge', boss:true, scale:1.8, look:{cloth:0x4a6a1a, accent:0xb8f060, gear:'none', weapon:'claw', skin:0x8aaa58} },
   goblinking:{name:'Goblin King',    body:'goblin',   stats:{hp:48,def:5,phys:10,rng:1,arc:0,ward:3,faith:0,spd:4,stl:1}, weapons:['kingsmaul'], move:3, ai:'charge', boss:true, scale:1.6, look:{cloth:0x8a2020, accent:0xe8a33d, gear:'crown', weapon:'mace'} },
   warden:   { name:'Bone Warden',    body:'skeleton', stats:{hp:52,def:6,phys:9,rng:1,arc:6,ward:5,faith:0,spd:5,stl:1}, weapons:['wardenblade','gravecall'], move:3, ai:'charge', boss:true, scale:1.6, look:{cloth:0x2a2a3a, accent:0x7fe0d0, gear:'warden', weapon:'sword'} },
 };
 // enemy groups by depth band
 D.ENCOUNTERS = [
-  ['cutter','cutter','archer','hexer','brute'],
-  ['cutter','archer','skeleton','skelarcher','hexer','brute','bloater'],
-  ['skeleton','skelarcher','cultist','ghoul','brute','archer','bloater'],
-  ['skeleton','skelarcher','cultist','ghoul','ghoul','cultist','bloater','bloater'],
+  ['cutter','cutter','archer','hexer','brute','spearman'],
+  ['cutter','archer','skeleton','skelarcher','hexer','brute','bloater','spearman','shaman','bomber','shieldbearer'],
+  ['skeleton','skelarcher','cultist','ghoul','brute','archer','bloater','shieldbearer','wraith','necromancer','ghast','assassin','bomber'],
+  ['skeleton','skelarcher','cultist','ghoul','cultist','bloater','boneknight','wraith','troll','necromancer','assassin','ghast','shieldbearer'],
+  ['skelarcher','cultist','ghast','boneknight','boneknight','wraith','troll','troll','necromancer','assassin','shieldbearer','bloater','shaman'],
 ];
+// boss pools by floor. floor 3+ draws from every boss.
+D.BOSSES = [
+  ['goblinking','bloatmother'],
+  ['warden','priestess'],
+  ['goblinking','warden','trollking','lich','priestess','bloatmother'],
+];
+D.ETRAITS = { regen:n => `Regenerates ${n} HP each turn.`, summon:s => `Summons ${D.ENEMIES[s.key].name}s every ${s.every === 1 ? '' : s.every + ' '}turn${s.every === 1 ? '' : 's'}.`, volatile:() => 'Explodes when killed.', ghost:() => 'Ghostly: hard to see in the dark.', boss:() => 'Enrages once at half HP.' };
 
 D.DICE = {
   d4:     { color:0x8a8f9c, name:'Iron d4',   faces:[1,2,3,4],          price:20 },

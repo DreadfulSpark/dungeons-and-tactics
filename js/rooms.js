@@ -524,7 +524,8 @@ R.build = function (kind, depth) {
   const mult = 1 + .12 * (depth - 1) + (kind === 'elite' ? .15 : 0);
   const enemies = [];
   if (kind === 'boss') {
-    enemies.push({ key: depth % 2 === 1 ? 'goblinking' : 'warden', mult, at: bossSpawn });
+    const pool = D.BOSSES[Math.min(D.BOSSES.length - 1, depth - 1)];
+    enemies.push({ key: D.ENEMIES[Q.get('boss')] && D.ENEMIES[Q.get('boss')].boss ? Q.get('boss') : pick(pool), mult, at: bossSpawn });
     count = Math.min(5, 2 + Math.floor(depth / 2));
   }
   for (let i = 0; i < count; i++) enemies.push({ key: pick(band), mult });
